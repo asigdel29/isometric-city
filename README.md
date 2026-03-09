@@ -67,7 +67,7 @@ Made with [Cursor](https://cursor.com).
 
 ## Contributing
 
-Contributions are welcome. Whether it's reporting a bug, proposing a new feature, or submitting a pull request, your input is valued.
+Contributions, bug reports, feature requests, and pull requests are welcome.
 
 Please ensure your code follows the existing style and conventions.
 
