@@ -71,8 +71,6 @@ Made with [Cursor](https://cursor.com).
 
 Contributions, bug reports, feature requests, and pull requests are welcome.
 
-Please ensure your code follows the existing style and conventions.
-
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
