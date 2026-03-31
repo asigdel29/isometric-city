@@ -180,10 +180,10 @@ export const WATER_ASSET_PATH = '/assets/water.png';
 export const BOAT_COLORS = ['#ffffff', '#1e3a5f', '#8b4513', '#2f4f4f', '#c41e3a', '#1e90ff']; // Various boat hull colors
 export const BOAT_MIN_ZOOM = 0.3; // Minimum zoom level to show boats
 export const WAKE_MIN_ZOOM_MOBILE = 0.45; // Minimum zoom level to show wakes on mobile (matches traffic lights threshold)
-export const BOATS_PER_DOCK = 1.5; // Number of boats per marina/pier
-export const BOATS_PER_DOCK_MOBILE = 0.5; // Mobile: fewer boats per dock
-export const MAX_BOATS = 12; // Maximum total boats in the city
-export const MAX_BOATS_MOBILE = 4; // Mobile: fewer boats for performance
+export const BOATS_PER_DOCK = 15; // Number of boats per marina/pier (10x density)
+export const BOATS_PER_DOCK_MOBILE = 5; // Mobile: fewer boats per dock (10x density)
+export const MAX_BOATS = 120; // Maximum total boats in the city (10x density)
+export const MAX_BOATS_MOBILE = 40; // Mobile: fewer boats for performance (10x density)
 export const WAKE_MAX_AGE = 2.0; // seconds - how long wake particles last
 export const WAKE_SPAWN_INTERVAL = 0.03; // seconds between wake particles
 
