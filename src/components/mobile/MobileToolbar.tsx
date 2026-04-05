@@ -6,6 +6,7 @@ import { useGame } from '@/context/GameContext';
 import { Tool, TOOL_INFO } from '@/types/game';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   CloseIcon,
   RoadIcon,
@@ -98,13 +99,13 @@ const QuickToolIcons: Partial<Record<Tool, React.ReactNode>> = {
   subway: <SubwayIcon size={20} />,
   tree: <TreeIcon size={20} />,
   zone_residential: (
-    <div className="w-5 h-5 rounded-sm bg-green-500 flex items-center justify-center text-[10px] font-bold text-white">R</div>
+    <div className="w-5 h-5 rounded-sm bg-emerald-600 border border-emerald-800 flex items-center justify-center text-[10px] font-bold font-doodle text-white">R</div>
   ),
   zone_commercial: (
-    <div className="w-5 h-5 rounded-sm bg-blue-500 flex items-center justify-center text-[10px] font-bold text-white">C</div>
+    <div className="w-5 h-5 rounded-sm bg-sky-600 border border-sky-800 flex items-center justify-center text-[10px] font-bold font-doodle text-white">C</div>
   ),
   zone_industrial: (
-    <div className="w-5 h-5 rounded-sm bg-amber-500 flex items-center justify-center text-[10px] font-bold text-white">I</div>
+    <div className="w-5 h-5 rounded-sm bg-amber-600 border border-amber-800 flex items-center justify-center text-[10px] font-bold font-doodle text-white">I</div>
   ),
   zone_dezone: (
     <div className="w-5 h-5 rounded-sm bg-gray-500 flex items-center justify-center text-[10px] font-bold text-white">X</div>
@@ -245,9 +246,10 @@ interface MobileToolbarProps {
   onOpenPanel: (panel: 'budget' | 'statistics' | 'advisors' | 'settings') => void;
   overlayMode?: OverlayMode;
   setOverlayMode?: (mode: OverlayMode) => void;
+  onOpenSketchLab?: () => void;
 }
 
-export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMode }: MobileToolbarProps) {
+export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMode, onOpenSketchLab }: MobileToolbarProps) {
   const { state, setTool, expandCity, shrinkCity } = useGame();
   const { selectedTool, stats } = state;
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
@@ -278,56 +280,70 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
 
   return (
     <>
-      {/* Bottom Toolbar */}
+      {/* Bottom Toolbar — plain div so dark Card tokens never override paper UI */}
       <div className="fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
-        <Card className="rounded-none border-x-0 border-b-0 bg-card/95 backdrop-blur-sm">
-          {/* Selected tool info - now above the toolbar */}
+        <div role="toolbar" aria-label="Build tools" className="mobile-toolbar-shell rounded-none">
+          {/* Selected tool info — cream strip matching MobileTopBar demand row */}
           {selectedTool && TOOL_INFO[selectedTool] && (
-            <div className="flex items-center justify-between px-4 py-1.5 border-b border-sidebar-border/50 bg-secondary/30 text-xs">
-              <span className="text-foreground font-medium">
+            <div className="mobile-toolbar-tool-line flex items-center justify-between px-4 py-1.5 text-xs">
+              <span className="font-doodle font-semibold text-slate-900 tracking-wide">
                 {m(TOOL_INFO[selectedTool].name)}
               </span>
               {TOOL_INFO[selectedTool].cost > 0 && (
-                <span className={`font-mono ${stats.money >= TOOL_INFO[selectedTool].cost ? 'text-green-400' : 'text-red-400'}`}>
+                <span className={`font-mono font-medium ${stats.money >= TOOL_INFO[selectedTool].cost ? 'text-emerald-800' : 'text-red-700'}`}>
                   ${TOOL_INFO[selectedTool].cost}
                 </span>
               )}
             </div>
           )}
 
-          <div className="flex items-center justify-around px-2 py-2 gap-1">
-            {/* Quick access tools */}
+          <div className="mobile-toolbar-icon-row flex items-center justify-around px-2 py-2 gap-1">
+            {/* Quick access tools — variant ghost + .mobile-toolbar-quick-btn (globals.css beats dark theme) */}
             <Button
-              variant={selectedTool === 'select' ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                selectedTool === 'select' && 'mobile-toolbar-quick-btn--active',
+              )}
               onClick={() => handleToolSelect('select')}
             >
               {QuickToolIcons.select}
             </Button>
 
             <Button
-              variant={selectedTool === 'bulldoze' ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11 text-red-400"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                selectedTool === 'bulldoze'
+                  ? 'mobile-toolbar-quick-btn--bulldoze'
+                  : 'mobile-toolbar-quick-btn--bulldoze-inactive',
+              )}
               onClick={() => handleToolSelect('bulldoze')}
             >
               {QuickToolIcons.bulldoze}
             </Button>
 
             <Button
-              variant={selectedTool === 'road' ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                selectedTool === 'road' && 'mobile-toolbar-quick-btn--active',
+              )}
               onClick={() => handleToolSelect('road')}
             >
               {QuickToolIcons.road}
             </Button>
 
             <Button
-              variant={selectedTool === 'rail' ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                selectedTool === 'rail' && 'mobile-toolbar-quick-btn--active',
+              )}
               onClick={() => handleToolSelect('rail')}
             >
               {QuickToolIcons.rail}
@@ -335,27 +351,36 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
 
             {/* Zone buttons */}
             <Button
-              variant={selectedTool === 'zone_residential' ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                selectedTool === 'zone_residential' && 'mobile-toolbar-quick-btn--active',
+              )}
               onClick={() => handleToolSelect('zone_residential')}
             >
               {QuickToolIcons.zone_residential}
             </Button>
 
             <Button
-              variant={selectedTool === 'zone_commercial' ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                selectedTool === 'zone_commercial' && 'mobile-toolbar-quick-btn--active',
+              )}
               onClick={() => handleToolSelect('zone_commercial')}
             >
               {QuickToolIcons.zone_commercial}
             </Button>
 
             <Button
-              variant={selectedTool === 'zone_industrial' ? 'default' : 'ghost'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                selectedTool === 'zone_industrial' && 'mobile-toolbar-quick-btn--active',
+              )}
               onClick={() => handleToolSelect('zone_industrial')}
             >
               {QuickToolIcons.zone_industrial}
@@ -363,9 +388,12 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
 
             {/* More tools menu button */}
             <Button
-              variant={showMenu ? 'default' : 'secondary'}
+              variant="ghost"
               size="icon"
-              className="h-11 w-11"
+              className={cn(
+                'mobile-toolbar-quick-btn h-11 w-11',
+                showMenu && 'mobile-toolbar-quick-btn--menu-open',
+              )}
               onClick={() => setShowMenu(!showMenu)}
             >
               {showMenu ? (
@@ -379,14 +407,14 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
               )}
             </Button>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Expanded Tool Menu */}
       {showMenu && (
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setShowMenu(false)}>
+        <div className="fixed inset-0 z-40 bg-slate-900/35 backdrop-blur-[2px]" onClick={() => setShowMenu(false)}>
           <Card
-            className="absolute bottom-20 left-2 right-2 max-h-[70vh] overflow-hidden rounded-xl flex flex-col"
+            className="absolute bottom-20 left-2 right-2 max-h-[70vh] overflow-hidden rounded-xl flex flex-col notebook-paper border-2 border-dashed border-slate-400/70 text-slate-900 shadow-[6px_8px_0_rgba(15,23,42,0.1)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* City Management section at top */}
@@ -427,6 +455,19 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                 >
                   {m(UI_LABELS.settings)}
                 </Button>
+                {onOpenSketchLab && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 col-span-4 w-full text-xs"
+                    onClick={() => {
+                      onOpenSketchLab();
+                      setShowMenu(false);
+                    }}
+                  >
+                    {m(msg('Sketch Lab'))}
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -488,7 +529,7 @@ export function MobileToolbar({ onOpenPanel, overlayMode = 'none', setOverlayMod
                   <Button
                     variant={overlayMode === 'education' ? 'default' : 'ghost'}
                     size="sm"
-                    className={`h-10 w-full text-xs ${overlayMode === 'education' ? 'bg-purple-500 hover:bg-purple-600' : ''}`}
+                    className={`h-10 w-full text-xs ${overlayMode === 'education' ? 'bg-teal-500 hover:bg-teal-600' : ''}`}
                     onClick={() => setOverlayMode('education')}
                   >
                     {m(UI_LABELS.education)}

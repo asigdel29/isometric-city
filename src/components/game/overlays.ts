@@ -75,8 +75,8 @@ export const OVERLAY_CONFIG: Record<OverlayMode, OverlayConfig> = {
   education: {
     label: 'Education',
     title: 'Education Coverage',
-    activeColor: 'bg-purple-500',
-    hoverColor: 'hover:bg-purple-600',
+    activeColor: 'bg-teal-500',
+    hoverColor: 'hover:bg-teal-600',
   },
   subway: {
     label: 'Subway',
@@ -227,7 +227,7 @@ export const OVERLAY_CIRCLE_COLORS: Record<OverlayMode, string> = {
   fire: 'rgba(248, 113, 113, 0.8)',    // Light red
   police: 'rgba(147, 197, 253, 0.8)',  // Light blue
   health: 'rgba(134, 239, 172, 0.8)',  // Light green
-  education: 'rgba(196, 181, 253, 0.8)', // Light purple
+  education: 'rgba(45, 212, 191, 0.85)', // Teal
   subway: 'rgba(253, 224, 71, 0.8)',   // Yellow
 };
 
@@ -239,7 +239,7 @@ export const OVERLAY_HIGHLIGHT_COLORS: Record<OverlayMode, string> = {
   fire: 'rgba(239, 68, 68, 1)',        // Red
   police: 'rgba(59, 130, 246, 1)',     // Blue
   health: 'rgba(34, 197, 94, 1)',      // Green
-  education: 'rgba(168, 85, 247, 1)',  // Purple
+  education: 'rgba(13, 148, 136, 1)', // Teal
   subway: 'rgba(234, 179, 8, 1)',      // Yellow
 };
 
@@ -251,6 +251,6 @@ export const OVERLAY_CIRCLE_FILL_COLORS: Record<OverlayMode, string> = {
   fire: 'rgba(248, 113, 113, 0.12)',
   police: 'rgba(147, 197, 253, 0.12)',
   health: 'rgba(134, 239, 172, 0.12)',
-  education: 'rgba(196, 181, 253, 0.12)',
+  education: 'rgba(45, 212, 191, 0.12)',
   subway: 'rgba(253, 224, 71, 0.12)',
 };

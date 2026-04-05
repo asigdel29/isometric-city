@@ -8,14 +8,23 @@ import Game from '@/components/Game';
 import { CoopModal } from '@/components/multiplayer/CoopModal';
 import { useMobile } from '@/hooks/useMobile';
 import { getSpritePack, getSpriteCoords, DEFAULT_SPRITE_PACK_ID } from '@/lib/renderConfig';
+import { applyFrontendSchemeToRgb } from '@/lib/gameAssetColorGrade';
 import { SavedCityMeta, GameState } from '@/types/game';
 import { decompressFromUTF16, compressToUTF16 } from 'lz-string';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { T } from 'gt-next';
 import { Users, X } from 'lucide-react';
 
+/** Upstream open-source project this build is forked from */
+const FORK_SOURCE = {
+  label: 'amilich/isometric-city',
+  href: 'https://github.com/amilich/isometric-city',
+} as const;
+
 const STORAGE_KEY = 'isocity-game-state';
 const SAVED_CITIES_INDEX_KEY = 'isocity-saved-cities-index';
+const EXAMPLE_STATE_9_PATH = '/example-states/example_state_9.json';
+const CREATE_CITY_EXAMPLE_PATH = '/example-states/create_city_example.json';
 
 // Background color to filter from sprite sheets (red)
 const BACKGROUND_COLOR = { r: 255, g: 0, b: 0 };
@@ -47,6 +56,11 @@ function filterBackgroundColor(img: HTMLImageElement): HTMLCanvasElement {
     
     if (distance <= COLOR_THRESHOLD) {
       data[i + 3] = 0; // Make transparent
+    } else {
+      const [nr, ng, nb] = applyFrontendSchemeToRgb(r, g, b);
+      data[i] = nr;
+      data[i + 1] = ng;
+      data[i + 2] = nb;
     }
   }
   
@@ -154,7 +168,18 @@ function saveCityToIndex(state: GameState, roomCode?: string): void {
 }
 
 // Sprite Gallery component that renders sprites using canvas (like SpriteTestPanel)
-function SpriteGallery({ count = 16, cols = 4, cellSize = 120 }: { count?: number; cols?: number; cellSize?: number }) {
+function SpriteGallery({
+  count = 16,
+  cols = 4,
+  cellSize = 120,
+  paperStyle = false,
+}: {
+  count?: number;
+  cols?: number;
+  cellSize?: number;
+  /** Lined-paper “cutout” cells for the notebook landing */
+  paperStyle?: boolean;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [filteredSheet, setFilteredSheet] = useState<HTMLCanvasElement | null>(null);
   const spritePack = useMemo(() => getSpritePack(DEFAULT_SPRITE_PACK_ID), []);
@@ -231,12 +256,18 @@ function SpriteGallery({ count = 16, cols = 4, cellSize = 120 }: { count?: numbe
       const cellX = col * cellSize;
       const cellY = row * cellSize;
       
-      // Draw cell background
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.lineWidth = 1;
+      // Draw cell background (dark UI vs notebook “paper square”)
+      if (paperStyle) {
+        ctx.fillStyle = 'rgba(255, 252, 245, 0.98)';
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.28)';
+        ctx.lineWidth = 2;
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+      }
       ctx.beginPath();
-      ctx.roundRect(cellX + 2, cellY + 2, cellSize - 4, cellSize - 4, 4);
+      ctx.roundRect(cellX + 2, cellY + 2, cellSize - 4, cellSize - 4, paperStyle ? 6 : 4);
       ctx.fill();
       ctx.stroke();
       
@@ -263,12 +294,12 @@ function SpriteGallery({ count = 16, cols = 4, cellSize = 120 }: { count?: numbe
         Math.round(destWidth), Math.round(destHeight)
       );
     });
-  }, [filteredSheet, spriteData, cols, cellSize]);
+  }, [filteredSheet, spriteData, cols, cellSize, paperStyle]);
   
   return (
     <canvas
       ref={canvasRef}
-      className="opacity-80 hover:opacity-100 transition-opacity"
+      className={`${paperStyle ? 'doodle-paper opacity-100' : 'opacity-80 hover:opacity-100'} transition-opacity`}
       style={{ imageRendering: 'pixelated' }}
     />
   );
@@ -280,22 +311,22 @@ function SavedCityCard({ city, onLoad, onDelete }: { city: SavedCityMeta; onLoad
     <div className="relative group">
       <button
         onClick={onLoad}
-        className="w-full text-left p-3 pr-8 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-none transition-all duration-200"
+        className="w-full text-left p-3 pr-8 bg-white/90 hover:bg-white border-2 border-dashed border-slate-400 hover:border-slate-600 rounded-lg shadow-[3px_3px_0_0_rgba(15,23,42,0.08)] transition-all duration-200"
       >
         <div className="flex items-center gap-2">
-          <h3 className="text-white font-medium truncate group-hover:text-white/90 text-sm flex-1">
+          <h3 className="text-slate-900 font-note font-medium truncate group-hover:text-sky-800 text-sm flex-1">
             {city.cityName}
           </h3>
           {city.roomCode && (
-            <span className="text-xs px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded shrink-0">
+            <span className="text-xs px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded shrink-0 border border-amber-300/80 font-note">
               Co-op
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-1 text-xs text-white/50">
+        <div className="flex items-center gap-3 mt-1 text-xs text-slate-600 font-note">
           <span>Pop: {city.population.toLocaleString()}</span>
           <span>${city.money.toLocaleString()}</span>
-          {city.roomCode && <span className="text-blue-400/60">{city.roomCode}</span>}
+          {city.roomCode && <span className="text-sky-800/90 font-mono">{city.roomCode}</span>}
         </div>
       </button>
       {onDelete && (
@@ -304,7 +335,7 @@ function SavedCityCard({ city, onLoad, onDelete }: { city: SavedCityMeta; onLoad
             e.stopPropagation();
             onDelete();
           }}
-          className="absolute top-1/2 -translate-y-1/2 right-1.5 p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-500/20 text-white/40 hover:text-red-400 rounded transition-all duration-200"
+          className="absolute top-1/2 -translate-y-1/2 right-1.5 p-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-destructive/20 text-muted-foreground hover:text-destructive rounded transition-all duration-200"
           title="Delete city"
         >
           <X className="w-3.5 h-3.5" />
@@ -383,6 +414,27 @@ export default function HomePage() {
     }
   };
 
+  const loadExampleJsonIntoMainSave = async (examplePath: string) => {
+    if (typeof window === 'undefined') return;
+    if (window.location.search.includes('room=')) {
+      window.history.replaceState({}, '', '/');
+      setPendingRoomCode(null);
+    }
+    const response = await fetch(examplePath);
+    if (!response.ok) {
+      console.error('Failed to fetch example state:', response.status);
+      return;
+    }
+    const exampleState = await response.json();
+    try {
+      const compressed = compressToUTF16(JSON.stringify(exampleState));
+      localStorage.setItem(STORAGE_KEY, compressed);
+    } catch (e) {
+      console.error('Failed to save example state:', e);
+    }
+    setShowGame(true);
+  };
+
   // Delete a saved city from the index
   const deleteSavedCity = (city: SavedCityMeta) => {
     try {
@@ -445,8 +497,8 @@ export default function HomePage() {
 
   if (isChecking) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-white/60"><T>Loading...</T></div>
+      <main className="min-h-screen notebook-paper flex items-center justify-center">
+        <div className="font-note text-slate-600 text-lg"><T>Loading...</T></div>
       </main>
     );
   }
@@ -472,86 +524,58 @@ export default function HomePage() {
   if (isMobile) {
     return (
       <MultiplayerContextProvider>
-        <main className="h-[100dvh] max-h-[100dvh] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] overflow-y-auto">
+        <main className="relative h-[100dvh] max-h-[100dvh] flex flex-col items-center px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(5.5rem,env(safe-area-inset-bottom))] overflow-y-auto text-slate-900 notebook-paper">
+          <div className="absolute top-3 right-3 z-10">
+            <LanguageSelector
+              variant="ghost"
+              className="text-slate-700 hover:text-slate-900 hover:bg-white/60 border border-dashed border-slate-400 rounded-lg"
+            />
+          </div>
+
           {/* Spacer to push content down slightly from top */}
           <div className="flex-shrink-0 h-4 sm:h-8" />
           
-          {/* Title - smaller on very small screens */}
-          <h1 className="text-4xl sm:text-5xl font-light tracking-wider text-white/90 mb-4 sm:mb-6 flex-shrink-0">
-            IsoCity
+          <h1 className="font-doodle text-4xl sm:text-5xl font-bold text-slate-900 mb-3 sm:mb-5 flex-shrink-0 text-center leading-[1.1] -rotate-1 drop-shadow-sm px-2">
+            ai native city
           </h1>
           
-          {/* Sprite Gallery - smaller on mobile, contained */}
           <div className="mb-4 sm:mb-6 flex-shrink-0">
-            <SpriteGallery count={9} cols={3} cellSize={56} />
+            <SpriteGallery count={9} cols={3} cellSize={56} paperStyle />
           </div>
           
-          {/* Buttons - more compact */}
-          <div className="flex flex-col gap-2 sm:gap-3 w-full max-w-xs flex-shrink-0">
+          <div className="flex flex-col gap-3 w-full max-w-xs flex-shrink-0">
             <Button 
               onClick={() => setShowGame(true)}
-              className="w-full py-4 sm:py-6 text-lg sm:text-xl font-light tracking-wide bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-none transition-all duration-300"
+              className="w-full py-4 sm:py-5 text-xl sm:text-2xl doodle-btn-primary"
             >
               {hasSaved ? <T>Continue</T> : <T>New Game</T>}
             </Button>
 
             <Button
               onClick={() => setShowCoopModal(true)}
-              variant="outline"
-              className="w-full py-4 sm:py-6 text-lg sm:text-xl font-light tracking-wide bg-white/5 hover:bg-white/15 text-white/60 hover:text-white border border-white/15 rounded-none transition-all duration-300"
+              className="w-full py-4 sm:py-5 text-xl sm:text-2xl doodle-btn-outline"
             >
               <T>Co-op</T>
             </Button>
 
             <Button
-              onClick={async () => {
-                // Clear any room code from URL to prevent multiplayer conflicts
-                if (window.location.search.includes('room=')) {
-                  window.history.replaceState({}, '', '/');
-                  setPendingRoomCode(null);
-                }
-                const response = await fetch('/example-states/example_state_9.json');
-                const exampleState = await response.json();
-                try {
-                  const compressed = compressToUTF16(JSON.stringify(exampleState));
-                  localStorage.setItem(STORAGE_KEY, compressed);
-                } catch (e) {
-                  console.error('Failed to save example state:', e);
-                }
-                setShowGame(true);
-              }}
-              variant="outline"
-              className="w-full py-4 sm:py-6 text-lg sm:text-xl font-light tracking-wide bg-transparent hover:bg-white/10 text-white/40 hover:text-white/60 border border-white/10 rounded-none transition-all duration-300"
+              onClick={() => loadExampleJsonIntoMainSave(EXAMPLE_STATE_9_PATH)}
+              className="w-full py-4 sm:py-5 text-xl sm:text-2xl doodle-btn-outline text-slate-700"
             >
               <T>Load Example</T>
             </Button>
-            <div className="flex items-start justify-between w-full">
-              <div className="flex flex-col">
-                <a
-                  href="https://cursor.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-left py-2 text-sm font-light tracking-wide text-white/40 hover:text-white/70 transition-colors duration-200"
-                >
-                  <T>Made with Cursor</T>
-                </a>
-                <a
-                  href="https://github.com/amilich/isometric-city"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-left py-2 text-sm font-light tracking-wide text-white/40 hover:text-white/70 transition-colors duration-200"
-                >
-                  <T>Open GitHub</T>
-                </a>
-              </div>
-              <LanguageSelector variant="ghost" className="text-white/40 hover:text-white/70 hover:bg-white/10" />
-            </div>
+            <Button
+              onClick={() => loadExampleJsonIntoMainSave(CREATE_CITY_EXAMPLE_PATH)}
+              className="w-full py-4 sm:py-5 text-xl sm:text-2xl doodle-btn-outline text-slate-700"
+            >
+              <T>Create city</T>
+            </Button>
           </div>
           
           {/* Saved Cities - scrollable area takes remaining space */}
           {savedCities.length > 0 && (
             <div className="w-full max-w-xs mt-3 sm:mt-4 flex-1 min-h-0 flex flex-col">
-              <h2 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2 flex-shrink-0">
+              <h2 className="text-xs font-note font-semibold text-slate-600 uppercase tracking-wider mb-2 flex-shrink-0">
                 <T>Saved Cities</T>
               </h2>
               <div 
@@ -570,10 +594,20 @@ export default function HomePage() {
             </div>
           )}
           
-          {/* Bottom spacer */}
           <div className="flex-shrink-0 h-2" />
+
+          <p className="fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] right-[max(0.75rem,env(safe-area-inset-right))] z-20 max-w-[min(100vw-1.5rem,280px)] text-right font-note text-xs sm:text-sm text-slate-600 leading-snug">
+            <span className="opacity-80">Forked from </span>
+            <a
+              href={FORK_SOURCE.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sky-800 underline decoration-wavy decoration-sky-600/60 underline-offset-4 hover:text-sky-950 font-semibold"
+            >
+              {FORK_SOURCE.label}
+            </a>
+          </p>
           
-          {/* Co-op Modal */}
           <CoopModal
             open={showCoopModal}
             onOpenChange={setShowCoopModal}
@@ -588,77 +622,50 @@ export default function HomePage() {
   // Desktop landing page
   return (
     <MultiplayerContextProvider>
-      <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-8">
-        <div className="max-w-7xl w-full grid lg:grid-cols-2 gap-16 items-center">
+      <main className="min-h-screen relative flex items-center justify-center p-8 pb-20 text-slate-900 notebook-paper">
+        <div className="absolute top-6 right-8 z-10">
+          <LanguageSelector
+            variant="ghost"
+            className="text-slate-700 hover:text-slate-900 hover:bg-white/60 border border-dashed border-slate-400 rounded-lg"
+          />
+        </div>
+
+        <div className="max-w-7xl w-full grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           
-          {/* Left - Title and Start Button */}
-          <div className="flex flex-col items-center lg:items-start justify-center space-y-12">
-            <h1 className="text-8xl font-light tracking-wider text-white/90">
-              IsoCity
+          <div className="flex flex-col items-center lg:items-start justify-center space-y-10 lg:space-y-12">
+            <h1 className="font-doodle text-6xl sm:text-7xl lg:text-8xl font-bold text-slate-900 text-center lg:text-left leading-[1.05] -rotate-1 drop-shadow-sm max-w-xl">
+              ai native city
             </h1>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 w-full max-w-xs mx-auto lg:mx-0">
               <Button 
                 onClick={() => setShowGame(true)}
-                className="w-64 py-8 text-2xl font-light tracking-wide bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-none transition-all duration-300"
+                className="w-full py-7 text-2xl doodle-btn-primary"
               >
                 {hasSaved ? <T>Continue</T> : <T>New Game</T>}
               </Button>
               <Button
                 onClick={() => setShowCoopModal(true)}
-                variant="outline"
-                className="w-64 py-8 text-2xl font-light tracking-wide bg-white/5 hover:bg-white/15 text-white/60 hover:text-white border border-white/15 rounded-none transition-all duration-300"
+                className="w-full py-7 text-2xl doodle-btn-outline"
               >
                 <T>Co-op</T>
               </Button>
               <Button
-                onClick={async () => {
-                  // Clear any room code from URL to prevent multiplayer conflicts
-                  if (window.location.search.includes('room=')) {
-                    window.history.replaceState({}, '', '/');
-                    setPendingRoomCode(null);
-                  }
-                  const response = await fetch('/example-states/example_state_9.json');
-                  const exampleState = await response.json();
-                  try {
-                    const compressed = compressToUTF16(JSON.stringify(exampleState));
-                    localStorage.setItem(STORAGE_KEY, compressed);
-                  } catch (e) {
-                    console.error('Failed to save example state:', e);
-                  }
-                  setShowGame(true);
-                }}
-                variant="outline"
-                className="w-64 py-8 text-2xl font-light tracking-wide bg-transparent hover:bg-white/10 text-white/40 hover:text-white/60 border border-white/10 rounded-none transition-all duration-300"
+                onClick={() => loadExampleJsonIntoMainSave(EXAMPLE_STATE_9_PATH)}
+                className="w-full py-7 text-2xl doodle-btn-outline text-slate-700"
               >
                 <T>Load Example</T>
               </Button>
-              <div className="flex items-start justify-between w-64">
-                <div className="flex flex-col">
-                  <a
-                    href="https://cursor.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-left py-2 text-sm font-light tracking-wide text-white/40 hover:text-white/70 transition-colors duration-200"
-                  >
-                    <T>Made with Cursor</T>
-                  </a>
-                  <a
-                    href="https://github.com/amilich/isometric-city"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-left py-2 text-sm font-light tracking-wide text-white/40 hover:text-white/70 transition-colors duration-200"
-                  >
-                    <T>Open GitHub</T>
-                  </a>
-                </div>
-                <LanguageSelector variant="ghost" className="text-white/40 hover:text-white/70 hover:bg-white/10" />
-              </div>
+              <Button
+                onClick={() => loadExampleJsonIntoMainSave(CREATE_CITY_EXAMPLE_PATH)}
+                className="w-full py-7 text-2xl doodle-btn-outline text-slate-700"
+              >
+                <T>Create city</T>
+              </Button>
             </div>
             
-            {/* Saved Cities */}
             {savedCities.length > 0 && (
-              <div className="w-64">
-                <h2 className="text-xs font-medium text-white/40 uppercase tracking-wider mb-2">
+              <div className="w-full max-w-xs mx-auto lg:mx-0">
+                <h2 className="text-xs font-note font-semibold text-slate-600 uppercase tracking-wider mb-2">
                   <T>Saved Cities</T>
                 </h2>
                 <div 
@@ -678,13 +685,23 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* Right - Sprite Gallery */}
           <div className="flex justify-center lg:justify-end">
-            <SpriteGallery count={16} />
+            <SpriteGallery count={16} paperStyle />
           </div>
         </div>
+
+        <p className="fixed bottom-6 right-8 z-20 max-w-md text-right font-note text-sm text-slate-600 leading-snug">
+          <span className="opacity-80">Forked from </span>
+          <a
+            href={FORK_SOURCE.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sky-800 underline decoration-wavy decoration-sky-600/60 underline-offset-4 hover:text-sky-950 font-semibold"
+          >
+            {FORK_SOURCE.label}
+          </a>
+        </p>
         
-        {/* Co-op Modal */}
         <CoopModal
           open={showCoopModal}
           onOpenChange={setShowCoopModal}

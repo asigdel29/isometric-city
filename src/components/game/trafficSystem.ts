@@ -75,7 +75,7 @@ export const ROAD_CONFIG = {
 
 /** Colors for road rendering */
 export const ROAD_COLORS = {
-  ASPHALT: '#4a4a4a',
+  ASPHALT: '#b0aea8',
   ASPHALT_DARK: '#3a3a3a',
   ASPHALT_LIGHT: '#5a5a5a',
   LANE_MARKING: '#ffffff',

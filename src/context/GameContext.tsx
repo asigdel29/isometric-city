@@ -13,6 +13,7 @@ import {
   Tool,
   TOOL_INFO,
   ZoneType,
+  CustomWorldArtItem,
 } from '@/types/game';
 import {
   bulldozeTile,
@@ -36,6 +37,12 @@ import {
   setActiveSpritePack,
   SpritePack,
 } from '@/lib/renderConfig';
+import {
+  loadAiWorldPersisted,
+  saveAiWorldPersisted,
+  type AiWorldApiConfig,
+  type AiWorldPersisted,
+} from '@/lib/aiWorldModeStorage';
 
 const STORAGE_KEY = 'isocity-game-state';
 const SAVED_CITY_STORAGE_KEY = 'isocity-saved-city'; // For restoring after viewing shared city
@@ -43,6 +50,9 @@ const SAVED_CITIES_INDEX_KEY = 'isocity-saved-cities-index'; // Index of all sav
 const SAVED_CITY_PREFIX = 'isocity-city-'; // Prefix for individual saved city states
 const SPRITE_PACK_STORAGE_KEY = 'isocity-sprite-pack';
 const DAY_NIGHT_MODE_STORAGE_KEY = 'isocity-day-night-mode';
+
+/** Shown in the top bar for new games until the player renames in Settings */
+const DEFAULT_CITY_NAME = 'ai native city';
 
 export type DayNightMode = 'auto' | 'day' | 'night';
 
@@ -103,6 +113,14 @@ type GameContextValue = {
   loadSavedCity: (cityId: string) => boolean;
   deleteSavedCity: (cityId: string) => void;
   renameSavedCity: (cityId: string, newName: string) => void;
+  /** PNG data URL to place with the Place sketch tool (set from Sketch Lab) */
+  setPendingSketchArt: (dataUrl: string | null) => void;
+  /** BYOK LLM: each in-game month the model may adjust taxes, budgets, speed, or send notifications */
+  aiWorldSimulationEnabled: boolean;
+  saveAiWorldSettings: (next: AiWorldPersisted) => void;
+  aiWorldApiConfig: AiWorldApiConfig | null;
+  aiWorldSetupDialogOpen: boolean;
+  setAiWorldSetupDialogOpen: (open: boolean) => void;
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -281,6 +299,9 @@ function loadGameState(): GameState | null {
         // Ensure gameVersion exists for backward compatibility
         if (parsed.gameVersion === undefined) {
           parsed.gameVersion = 0;
+        }
+        if (!Array.isArray(parsed.customWorldArt)) {
+          parsed.customWorldArt = [];
         }
         // Migrate to include UUID if missing
         if (!parsed.id) {
@@ -647,7 +668,7 @@ function deleteCityState(cityId: string): void {
 
 export function GameProvider({ children, startFresh = false }: { children: React.ReactNode; startFresh?: boolean }) {
   // Start with a default state, we'll load from localStorage after mount (unless startFresh is true)
-  const [state, setState] = useState<GameState>(() => createInitialGameState(DEFAULT_GRID_SIZE, 'IsoCity'));
+  const [state, setState] = useState<GameState>(() => createInitialGameState(DEFAULT_GRID_SIZE, DEFAULT_CITY_NAME));
   
   const [hasExistingGame, setHasExistingGame] = useState(false);
   const [isStateReady, setIsStateReady] = useState(false);
@@ -659,13 +680,19 @@ export function GameProvider({ children, startFresh = false }: { children: React
   // Callback for multiplayer action broadcast
   const placeCallbackRef = useRef<((args: { x: number; y: number; tool: Tool }) => void) | null>(null);
   const bridgeCallbackRef = useRef<((args: { pathTiles: { x: number; y: number }[]; trackType: 'road' | 'rail' }) => void) | null>(null);
+  /** PNG data URL from Sketch Lab; consumed when placing with place_sketch tool */
+  const pendingSketchDataUrlRef = useRef<string | null>(null);
   
   // Sprite pack state
   const [currentSpritePack, setCurrentSpritePack] = useState<SpritePack>(() => getSpritePack(DEFAULT_SPRITE_PACK_ID));
   
   // Day/night mode state
   const [dayNightMode, setDayNightModeState] = useState<DayNightMode>('auto');
-  
+
+  const [aiWorldSimulationEnabled, setAiWorldSimulationEnabledState] = useState(false);
+  const [aiWorldApiConfig, setAiWorldApiConfigState] = useState<AiWorldApiConfig | null>(null);
+  const [aiWorldSetupDialogOpen, setAiWorldSetupDialogOpen] = useState(false);
+
   // Saved cities state for multi-city save system
   const [savedCities, setSavedCities] = useState<SavedCityMeta[]>([]);
   
@@ -680,7 +707,11 @@ export function GameProvider({ children, startFresh = false }: { children: React
     // Load day/night mode preference
     const savedDayNightMode = loadDayNightMode();
     setDayNightModeState(savedDayNightMode);
-    
+
+    const aiWorld = loadAiWorldPersisted();
+    setAiWorldApiConfigState(aiWorld.config);
+    setAiWorldSimulationEnabledState(aiWorld.simulationEnabled);
+
     // Load saved cities index
     const cities = loadSavedCitiesIndex();
     setSavedCities(cities);
@@ -870,6 +901,10 @@ export function GameProvider({ children, startFresh = false }: { children: React
     [],
   );
 
+  const setPendingSketchArt = useCallback((dataUrl: string | null) => {
+    pendingSketchDataUrlRef.current = dataUrl;
+  }, []);
+
   const placeAtTile = useCallback((x: number, y: number, isRemote = false) => {
     // For multiplayer broadcast, we need to capture the tool synchronously
     // before React batches the setState. We read from the latest state ref.
@@ -885,6 +920,23 @@ export function GameProvider({ children, startFresh = false }: { children: React
 
       if (!tile) return prev;
       if (cost > 0 && prev.stats.money < cost) return prev;
+
+      // Place player sketch / AI asset on a land tile (1×1)
+      if (tool === 'place_sketch') {
+        const dataUrl = pendingSketchDataUrlRef.current;
+        if (!dataUrl) return prev;
+        if (tile.building.type === 'water') return prev;
+        const id =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `sketch-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        const customWorldArt: CustomWorldArtItem[] = [
+          ...(prev.customWorldArt ?? []).filter((a) => !(a.x === x && a.y === y)),
+          { id, x, y, imageDataUrl: dataUrl },
+        ];
+        pendingSketchDataUrlRef.current = null;
+        return { ...prev, customWorldArt, selectedTool: 'select' as const };
+      }
 
       // Prevent wasted spend if nothing would change
       if (tool === 'bulldoze' && tile.building.type === 'grass' && tile.zone === 'none') {
@@ -969,7 +1021,8 @@ export function GameProvider({ children, startFresh = false }: { children: React
     
     // Broadcast to multiplayer if this is a local action (not remote)
     // We use the tool captured before setState since React 18 batches async
-    if (!isRemote && currentTool !== 'select' && placeCallbackRef.current) {
+    // place_sketch carries image data locally only (not synced via place events)
+    if (!isRemote && currentTool !== 'select' && currentTool !== 'place_sketch' && placeCallbackRef.current) {
       placeCallbackRef.current({ x, y, tool: currentTool });
     }
   }, []);
@@ -1117,6 +1170,13 @@ export function GameProvider({ children, startFresh = false }: { children: React
     saveDayNightMode(mode);
   }, []);
 
+  const saveAiWorldSettings = useCallback((next: AiWorldPersisted) => {
+    const enabled = Boolean(next.simulationEnabled && next.config?.apiKey);
+    setAiWorldSimulationEnabledState(enabled);
+    setAiWorldApiConfigState(next.config);
+    saveAiWorldPersisted({ simulationEnabled: enabled, config: next.config });
+  }, []);
+
   // Compute the visual hour based on the day/night mode override
   // This doesn't affect time progression, just the rendering
   const visualHour = dayNightMode === 'auto' 
@@ -1127,7 +1187,7 @@ export function GameProvider({ children, startFresh = false }: { children: React
 
   const newGame = useCallback((name?: string, size?: number) => {
     clearGameState(); // Clear saved state when starting fresh
-    const fresh = createInitialGameState(size ?? DEFAULT_GRID_SIZE, name || 'IsoCity');
+    const fresh = createInitialGameState(size ?? DEFAULT_GRID_SIZE, name || DEFAULT_CITY_NAME);
     // Increment gameVersion from current state to ensure vehicles/entities are cleared
     setState((prev) => ({
       ...fresh,
@@ -1200,6 +1260,9 @@ export function GameProvider({ children, startFresh = false }: { children: React
               }
             }
           }
+        }
+        if (!Array.isArray(parsed.customWorldArt)) {
+          parsed.customWorldArt = [];
         }
         // Increment gameVersion to clear vehicles/entities when loading a new state
         setState((prev) => ({
@@ -1292,10 +1355,18 @@ export function GameProvider({ children, startFresh = false }: { children: React
         return newBoolGrid;
       };
       
+      const off = 15;
+      const customWorldArt = (prev.customWorldArt ?? []).map((a) => ({
+        ...a,
+        x: a.x + off,
+        y: a.y + off,
+      }));
+
       return {
         ...prev,
         grid: newGrid,
         gridSize: newSize,
+        customWorldArt,
         // Expand all service grids
         services: {
           power: expandBoolGrid(prev.services.power),
@@ -1391,10 +1462,17 @@ export function GameProvider({ children, startFresh = false }: { children: React
         return newBoolGrid;
       };
       
+      const off = 15;
+      const gs = prev.gridSize;
+      const customWorldArt = (prev.customWorldArt ?? [])
+        .filter((a) => a.x >= off && a.y >= off && a.x < gs - off && a.y < gs - off)
+        .map((a) => ({ ...a, x: a.x - off, y: a.y - off }));
+
       return {
         ...prev,
         grid: newGrid,
         gridSize: newSize,
+        customWorldArt,
         // Shrink all service grids
         services: {
           power: shrinkBoolGrid(prev.services.power),
@@ -1675,6 +1753,12 @@ export function GameProvider({ children, startFresh = false }: { children: React
     loadSavedCity,
     deleteSavedCity,
     renameSavedCity,
+    setPendingSketchArt,
+    aiWorldSimulationEnabled,
+    saveAiWorldSettings,
+    aiWorldApiConfig,
+    aiWorldSetupDialogOpen,
+    setAiWorldSetupDialogOpen,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

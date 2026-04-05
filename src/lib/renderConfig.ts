@@ -183,7 +183,7 @@ export interface SpritePack {
 // ============================================================================
 const SPRITE_PACK_SPRITES4: SpritePack = {
   id: 'sprites4',
-  name: 'Default Theme',
+  name: 'Village Theme',
   src: '/assets/sprites_red_water_new.png',
   constructionSrc: '/assets/sprites_red_water_new_construction.png',
   abandonedSrc: '/assets/sprites_red_water_new_abandoned.png',

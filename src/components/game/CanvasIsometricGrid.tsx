@@ -61,7 +61,7 @@ import {
 } from '@/components/game/overlays';
 import { SERVICE_CONFIG, SERVICE_RANGE_INCREASE_PER_LEVEL } from '@/lib/simulation';
 import { drawPlaceholderBuilding } from '@/components/game/placeholders';
-import { loadImage, loadSpriteImage, onImageLoaded, getCachedImage } from '@/components/game/imageLoader';
+import { loadSpriteImage, loadTexturedAsset, onImageLoaded, getCachedImage, getTexturedAsset } from '@/components/game/imageLoader';
 import { TileInfoPanel } from '@/components/game/panels';
 import {
   findMarinasAndPiers,
@@ -111,6 +111,29 @@ import {
 import { Train } from '@/components/game/types';
 import { useLightingSystem } from '@/components/game/lightingSystem';
 
+/** Sky behind the map — matches landing `notebook-paper` (cream / lined-paper vibe). */
+const NOTEBOOK_SKY_GRADIENT = {
+  top: '#fcfaf5',
+  mid: '#f3efe6',
+  bottom: '#e6dfd4',
+} as const;
+
+/** Colored-pencil base tiles (inline isometric path — keep in sync with `ZONE_COLORS` in drawing.ts) */
+const PENCIL = {
+  grass: { top: '#c4dfb8', stroke: '#6b8a62' },
+  water: { top: '#9ec9e4', stroke: '#6a9ab8' },
+  road: { top: '#b8b6b2', stroke: '#7a7874' },
+  park: { top: '#c4dfb8', stroke: '#6b8a62' },
+  grey: { top: '#c4c8c4', stroke: '#6e726e' },
+  resGrass: { top: '#b8dcc0', stroke: '#5a8a62' },
+  resBuilt: { top: '#9cc8a4', stroke: '#4a7a52' },
+  comGrass: { top: '#b0c8e0', stroke: '#5a7090' },
+  comBuilt: { top: '#98b4d4', stroke: '#4a6088' },
+  indGrass: { top: '#d8ccb0', stroke: '#a88860' },
+  indBuilt: { top: '#c4b090', stroke: '#887050' },
+  waterFallback: '#8ec8e8',
+};
+
 // Props interface for CanvasIsometricGrid
 export interface CanvasIsometricGridProps {
   overlayMode: OverlayMode;
@@ -126,7 +149,7 @@ export interface CanvasIsometricGridProps {
 // Canvas-based Isometric Grid - HIGH PERFORMANCE
 export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile, isMobile = false, navigationTarget, onNavigationComplete, onViewportChange, onBargeDelivery }: CanvasIsometricGridProps) {
   const { state, latestStateRef, placeAtTile, finishTrackDrag, connectToCity, checkAndDiscoverCities, currentSpritePack, visualHour } = useGame();
-  const { grid, gridSize, selectedTool, speed, adjacentCities, waterBodies, gameVersion } = state;
+  const { grid, gridSize, selectedTool, speed, adjacentCities, waterBodies, gameVersion, customWorldArt } = state;
   
   // PERF: Use latestStateRef for real-time grid access in animation loops
   // This avoids waiting for React state sync which is throttled for performance
@@ -289,6 +312,8 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
   const [imagesLoaded, setImagesLoaded] = useState(true);
   // Counter to trigger re-renders when new images become available
   const [imageLoadVersion, setImageLoadVersion] = useState(0);
+  /** Cache decoded PNG data URLs for custom map art */
+  const customArtImageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 800 });
   const [dragStartTile, setDragStartTile] = useState<{ x: number; y: number } | null>(null);
   const [dragEndTile, setDragEndTile] = useState<{ x: number; y: number } | null>(null);
@@ -300,7 +325,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
   const showsDragGrid = ['zone_residential', 'zone_commercial', 'zone_industrial', 'zone_dezone'].includes(selectedTool);
   
   // Roads, bulldoze, and other tools support drag-to-place but don't show the grid
-  const supportsDragPlace = selectedTool !== 'select';
+  const supportsDragPlace = selectedTool !== 'select' && selectedTool !== 'place_sketch';
 
   const PAN_DRAG_THRESHOLD = 6;
 
@@ -870,7 +895,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
     loadSpriteImage(currentSpritePack.src, true).catch(console.error);
     
     // High priority - water texture
-    loadImage(WATER_ASSET_PATH).catch(console.error);
+    loadTexturedAsset(WATER_ASSET_PATH).catch(console.error);
     
     // Medium priority - load secondary sheets after a small delay
     // This allows the main content to render first
@@ -912,7 +937,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
         loadSpriteImage(currentSpritePack.mansionsSrc, true).catch(console.error);
       }
       // Load airplane sprite sheet (always loaded, not dependent on sprite pack)
-      loadSpriteImage(AIRPLANE_SPRITE_SRC, false).catch(console.error);
+      loadSpriteImage(AIRPLANE_SPRITE_SRC, true).catch(console.error);
     };
     
     // Load secondary sheets after 50ms to prioritize first paint
@@ -1003,9 +1028,9 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       const bgCache = bgGradientCacheRef.current;
       if (!bgCache.gradient || bgCache.height !== canvas.height) {
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        gradient.addColorStop(0, '#0f1419');
-        gradient.addColorStop(0.5, '#141c24');
-        gradient.addColorStop(1, '#1a2a1f');
+        gradient.addColorStop(0, NOTEBOOK_SKY_GRADIENT.top);
+        gradient.addColorStop(0.5, NOTEBOOK_SKY_GRADIENT.mid);
+        gradient.addColorStop(1, NOTEBOOK_SKY_GRADIENT.bottom);
         bgCache.gradient = gradient;
         bgCache.height = canvas.height;
       }
@@ -1150,9 +1175,9 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       const w = TILE_WIDTH;
       const h = TILE_HEIGHT;
       
-      // Determine tile colors (top face and shading)
-      let topColor = '#4a7c3f'; // grass
-      let strokeColor = '#2d4a26';
+      // Determine tile colors (top face and shading) — colored-pencil palette
+      let topColor: string = PENCIL.grass.top;
+      let strokeColor: string = PENCIL.grass.stroke;
 
       // PERF: Use pre-computed tile metadata for grey base check (O(1) lookup)
       const tileRenderMetadata = getTileMetadata(tile.x, tile.y);
@@ -1166,40 +1191,43 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       const hasGreyBase = tileRenderMetadata?.needsGreyBase ?? false;
       
       if (tile.building.type === 'water') {
-        topColor = '#2563eb';
-        strokeColor = '#1e3a8a';
+        topColor = PENCIL.water.top;
+        strokeColor = PENCIL.water.stroke;
       } else if (tile.building.type === 'road' || tile.building.type === 'bridge') {
-        topColor = '#4a4a4a';
-        strokeColor = '#333';
+        topColor = PENCIL.road.top;
+        strokeColor = PENCIL.road.stroke;
       } else if (isPark) {
-        topColor = '#4a7c3f';
-        strokeColor = '#2d4a26';
+        topColor = PENCIL.park.top;
+        strokeColor = PENCIL.park.stroke;
       } else if (hasGreyBase && !skipGreyBase) {
         // Grey/concrete base tiles for ALL buildings (except parks)
         // Skip if skipGreyBase is true (will be drawn later after water)
-        topColor = '#6b7280';
-        strokeColor = '#374151';
+        topColor = PENCIL.grey.top;
+        strokeColor = PENCIL.grey.stroke;
       } else if (tile.zone === 'residential') {
         if (tile.building.type !== 'grass' && tile.building.type !== 'empty') {
-          topColor = '#3d7c3f';
+          topColor = PENCIL.resBuilt.top;
+          strokeColor = PENCIL.resBuilt.stroke;
         } else {
-          topColor = '#2d5a2d';
+          topColor = PENCIL.resGrass.top;
+          strokeColor = PENCIL.resGrass.stroke;
         }
-        strokeColor = '#22c55e';
       } else if (tile.zone === 'commercial') {
         if (tile.building.type !== 'grass' && tile.building.type !== 'empty') {
-          topColor = '#3a5c7c';
+          topColor = PENCIL.comBuilt.top;
+          strokeColor = PENCIL.comBuilt.stroke;
         } else {
-          topColor = '#2a4a6a';
+          topColor = PENCIL.comGrass.top;
+          strokeColor = PENCIL.comGrass.stroke;
         }
-        strokeColor = '#3b82f6';
       } else if (tile.zone === 'industrial') {
         if (tile.building.type !== 'grass' && tile.building.type !== 'empty') {
-          topColor = '#7c5c3a';
+          topColor = PENCIL.indBuilt.top;
+          strokeColor = PENCIL.indBuilt.stroke;
         } else {
-          topColor = '#6a4a2a';
+          topColor = PENCIL.indGrass.top;
+          strokeColor = PENCIL.indGrass.stroke;
         }
-        strokeColor = '#f59e0b';
       }
       
       // Skip drawing green base for tiles adjacent to water (will be drawn later over water)
@@ -1230,8 +1258,8 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
         if (tile.zone !== 'none' && 
             currentZoom >= 0.95 &&
             (tile.building.type === 'grass' || tile.building.type === 'empty')) {
-          ctx.strokeStyle = tile.zone === 'residential' ? '#22c55e' : 
-                            tile.zone === 'commercial' ? '#3b82f6' : '#f59e0b';
+          ctx.strokeStyle = tile.zone === 'residential' ? '#5a9a68' :
+                            tile.zone === 'commercial' ? '#5a80b0' : '#c49a50';
           ctx.lineWidth = 1.5;
           ctx.setLineDash([4, 2]);
           ctx.stroke();
@@ -1241,8 +1269,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       
       // Highlight on hover/select (always draw, even if base was skipped)
       if (highlight) {
-        // Draw a semi-transparent fill for better visibility
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.fillStyle = 'rgba(255, 252, 245, 0.4)';
         ctx.beginPath();
         ctx.moveTo(x + w / 2, y);
         ctx.lineTo(x + w, y + h / 2);
@@ -1251,8 +1278,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
         ctx.closePath();
         ctx.fill();
         
-        // Draw white border
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = '#e8e4dc';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -1261,7 +1287,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
     // Helper function to draw water tile at a given screen position
     // Used for marina/pier buildings that sit on water
     function drawWaterTileAt(ctx: CanvasRenderingContext2D, screenX: number, screenY: number, gridX: number, gridY: number) {
-      const waterImage = getCachedImage(WATER_ASSET_PATH);
+      const waterImage = getTexturedAsset(WATER_ASSET_PATH);
       if (!waterImage) return;
       
       const w = TILE_WIDTH;
@@ -1358,7 +1384,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       if (hasTileSprite) {
         // Special handling for water: use separate water.png image with blending for adjacent water tiles
         if (buildingType === 'water') {
-          const waterImage = getCachedImage(WATER_ASSET_PATH);
+          const waterImage = getTexturedAsset(WATER_ASSET_PATH);
           
           // Check which adjacent tiles are also water for blending
           const gridX = tile.x;
@@ -1497,7 +1523,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
             ctx.restore();
           } else {
             // Water image not loaded yet - draw placeholder diamond
-            ctx.fillStyle = '#0ea5e9';
+            ctx.fillStyle = PENCIL.waterFallback;
             ctx.beginPath();
             ctx.moveTo(x + w / 2, y);
             ctx.lineTo(x + w, y + h / 2);
@@ -1839,7 +1865,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       const { tile, screenX, screenY } = roadQueue[i];
       
       // Draw road base tile first (grey diamond)
-      ctx.fillStyle = '#4a4a4a';
+      ctx.fillStyle = PENCIL.road.top;
       ctx.beginPath();
       ctx.moveTo(screenX + halfTileWidth, screenY);
       ctx.lineTo(screenX + tileWidth, screenY + halfTileHeight);
@@ -1876,7 +1902,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
     for (let i = 0; i < railQueue.length; i++) {
       const { tile, screenX, screenY } = railQueue[i];
       // Draw rail base tile first (dark gravel colored diamond)
-      ctx.fillStyle = '#5B6345'; // Dark gravel color for contrast with ballast
+      ctx.fillStyle = '#a8b090'; // Soft pencil gravel
       ctx.beginPath();
       ctx.moveTo(screenX + halfTileWidth, screenY);
       ctx.lineTo(screenX + tileWidth, screenY + halfTileHeight);
@@ -1886,7 +1912,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       ctx.fill();
       
       // Draw edge shading for depth
-      ctx.strokeStyle = '#4B5335';
+      ctx.strokeStyle = '#8a9278';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(screenX + halfTileWidth, screenY + tileHeight);
@@ -2012,6 +2038,33 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
           if (tile.building.bridgeType === 'suspension') {
             drawSuspensionBridgeOverlay(buildingsCtx, screenX, screenY, tile.building, zoom);
           }
+        }
+
+        // Player sketches / AI decals (sorted by depth like 1×1 buildings)
+        if (customWorldArt && customWorldArt.length > 0) {
+          const sortedArt = [...customWorldArt].sort((a, b) => a.x + a.y - (b.x + b.y));
+          const prevSmoothing = buildingsCtx.imageSmoothingEnabled;
+          buildingsCtx.imageSmoothingEnabled = true;
+          for (let i = 0; i < sortedArt.length; i++) {
+            const art = sortedArt[i];
+            const { screenX, screenY } = gridToScreen(art.x, art.y, 0, 0);
+            let img = customArtImageCacheRef.current.get(art.imageDataUrl);
+            if (!img) {
+              img = new Image();
+              img.onload = () => setImageLoadVersion((v) => v + 1);
+              img.onerror = () => setImageLoadVersion((v) => v + 1);
+              img.src = art.imageDataUrl;
+              customArtImageCacheRef.current.set(art.imageDataUrl, img);
+            }
+            if (!img.complete || img.naturalWidth === 0) continue;
+            const scale = 1.28;
+            const w = TILE_WIDTH * scale;
+            const h = w * (img.naturalHeight / img.naturalWidth);
+            const dx = screenX + TILE_WIDTH / 2 - w / 2;
+            const dy = screenY + TILE_HEIGHT / 2 - h * 0.55;
+            buildingsCtx.drawImage(img, dx, dy, w, h);
+          }
+          buildingsCtx.imageSmoothingEnabled = prevSmoothing;
         }
         
         // NOTE: Recreation pedestrians are now drawn in the animation loop on the air canvas
@@ -2168,7 +2221,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
       }
     };
   // PERF: hoveredTile and selectedTile removed from deps - now rendered on separate hover canvas layer
-  }, [grid, gridSize, offset, zoom, overlayMode, imagesLoaded, imageLoadVersion, canvasSize, dragStartTile, dragEndTile, state.services, currentSpritePack, waterBodies, getTileMetadata, showsDragGrid, isMobile]);
+  }, [grid, gridSize, offset, zoom, overlayMode, imagesLoaded, imageLoadVersion, canvasSize, dragStartTile, dragEndTile, state.services, state.customWorldArt, currentSpritePack, waterBodies, getTileMetadata, showsDragGrid, isMobile]);
   
   // PERF: Lightweight hover/selection overlay - renders ONLY tile highlights
   // This runs frequently (on mouse move) but is extremely fast since it only draws simple shapes
@@ -2214,7 +2267,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
     // Draw hovered tile highlight (with multi-tile preview for buildings)
     if (hoveredTile && hoveredTile.x >= 0 && hoveredTile.x < gridSize && hoveredTile.y >= 0 && hoveredTile.y < gridSize) {
       // Check if selectedTool is a building type (not a non-building tool)
-      const nonBuildingTools: Tool[] = ['select', 'bulldoze', 'road', 'rail', 'subway', 'tree', 'zone_residential', 'zone_commercial', 'zone_industrial', 'zone_dezone', 'zone_water', 'zone_land'];
+      const nonBuildingTools: Tool[] = ['select', 'bulldoze', 'road', 'rail', 'subway', 'tree', 'zone_residential', 'zone_commercial', 'zone_industrial', 'zone_dezone', 'zone_water', 'zone_land', 'place_sketch'];
       const isBuildingTool = selectedTool && !nonBuildingTools.includes(selectedTool);
       
       if (isBuildingTool) {
@@ -2574,6 +2627,9 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
           } else {
             setSelectedTile({ x: gridX, y: gridY });
           }
+        } else if (selectedTool === 'place_sketch') {
+          panCandidateRef.current = null;
+          placeAtTile(gridX, gridY);
         } else if (showsDragGrid) {
           panCandidateRef.current = null;
           // Start drag rectangle selection for zoning tools
@@ -3088,6 +3144,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
         className="absolute top-0 left-0 pointer-events-none"
         style={{ mixBlendMode: 'multiply' }}
       />
+      <div className="game-pencil-paper-overlay" aria-hidden />
       
       {selectedTile && selectedTool === 'select' && !isMobile && (
         <TileInfoPanel
@@ -3183,10 +3240,10 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
         const toolName = m(TOOL_INFO[selectedTool].name);
 
         return (
-          <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-md text-sm ${
+          <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg text-sm border shadow-md ${
             isWaterfrontPlacementInvalid
-              ? 'border bg-destructive/90 border-destructive-foreground/30 text-destructive-foreground'
-              : 'border bg-card/90 border-border'
+              ? 'border-red-500/50 bg-red-950/50 text-red-100'
+              : 'border-border bg-card/95 text-foreground backdrop-blur-sm'
           }`}>
             {isDragging && dragStartTile && dragEndTile && showsDragGrid ? (
               <>
@@ -3236,7 +3293,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
             className="fixed pointer-events-none z-[100]"
             style={{ left, top: hoveredIncident.screenY - 8 }}
           >
-            <div className="bg-sidebar border border-sidebar-border rounded-md shadow-lg px-3 py-2 w-[220px]">
+            <div className="bg-card border border-border rounded-lg shadow-lg px-3 py-2 w-[220px]">
               {/* Header */}
               <div className="flex gap-2 items-center mb-1">
                 {hoveredIncident.type === 'fire' ? (
@@ -3244,7 +3301,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
                 ) : (
                   <SafetyIcon size={14} className="text-blue-400" />
                 )}
-                <span className="text-xs font-semibold text-sidebar-foreground">
+                <span className="text-xs font-semibold text-foreground">
                   {hoveredIncident.type === 'fire'
                     ? getFireNameForTile(hoveredIncident.x, hoveredIncident.y)
                     : hoveredIncident.crimeType
@@ -3263,7 +3320,7 @@ export function CanvasIsometricGrid({ overlayMode, selectedTile, setSelectedTile
               </p>
               
               {/* Location */}
-              <div className="mt-1.5 pt-1.5 border-t border-sidebar-border/50 text-[10px] text-muted-foreground/60 font-mono">
+              <div className="mt-1.5 pt-1.5 border-t border-border text-[10px] text-muted-foreground font-mono">
                 ({hoveredIncident.x}, {hoveredIncident.y})
               </div>
             </div>

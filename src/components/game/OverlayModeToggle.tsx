@@ -65,7 +65,7 @@ export const OverlayModeToggle = React.memo(function OverlayModeToggle({
   const m = useMessages();
   
   return (
-    <Card className="fixed bottom-4 left-[240px] p-2 shadow-lg bg-card/90 border-border/70 z-50">
+    <Card className="fixed bottom-4 left-[240px] p-2 glass-panel z-50 rounded-lg">
       <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold mb-2">
         {m(VIEW_OVERLAY_LABEL)}
       </div>

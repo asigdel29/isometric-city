@@ -92,7 +92,7 @@ export const RAIL_COLORS = {
   RAIL_SHADOW: '#404040',       // Rail shadow
   // Bridge-specific colors (metallic steel look)
   BRIDGE_DECK: '#7a8088',       // Steel bridge deck - bluish gray metal
-  BRIDGE_TIE: '#4a4a4a',        // Metal/treated wood ties on bridge
+  BRIDGE_TIE: '#9a9890',        // Soft graphite ties (pencil world)
 };
 
 /** Locomotive colors (various liveries) */
@@ -100,7 +100,7 @@ export const LOCOMOTIVE_COLORS = [
   '#1e40af', // Blue
   '#dc2626', // Red
   '#059669', // Green
-  '#7c3aed', // Purple
+  '#0d9488', // Teal
   '#ea580c', // Orange
   '#0891b2', // Cyan
 ];
@@ -120,7 +120,7 @@ export const PASSENGER_COLORS = [
   '#C0C0C0', // Silver
   '#1e40af', // Blue
   '#059669', // Green
-  '#7c3aed', // Purple
+  '#0d9488', // Teal
 ];
 
 /** Track gauge (width between rails) as ratio of tile width - smaller for double track */

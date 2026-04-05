@@ -16,6 +16,8 @@ import { drawGuest } from '@/components/coaster/guests';
 import { useCoasterLightingSystem } from '@/components/coaster/lightingSystem';
 import { useCoasterCloudSystem, Cloud } from '@/components/coaster/cloudSystem';
 import { drawBeachOnWater } from '@/components/game/drawing';
+import { processSpriteSheetToCanvas } from '@/lib/gameAssetColorGrade';
+import { loadTexturedAsset } from '@/components/game/imageLoader';
 
 // Track tools that support drag-to-draw
 const TRACK_DRAG_TOOLS: Tool[] = [
@@ -57,10 +59,6 @@ const HEIGHT_UNIT = 20;
 // Water texture path (same as city game)
 const WATER_ASSET_PATH = '/assets/water.png';
 
-// Background color to filter (red)
-const BACKGROUND_COLOR = { r: 255, g: 0, b: 0 };
-const COLOR_THRESHOLD = 155;
-
 /**
  * Check if a coaster's station tile has an adjacent queue line
  * Returns true if guests can board (has adjacent queue), false otherwise
@@ -90,42 +88,6 @@ function hasAdjacentQueue(
   }
   
   return false;
-}
-
-// =============================================================================
-// SPRITE SHEET LOADING
-// =============================================================================
-
-function filterBackgroundColor(img: HTMLImageElement): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = img.naturalWidth || img.width;
-  canvas.height = img.naturalHeight || img.height;
-  
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-  
-  ctx.drawImage(img, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    
-    const distance = Math.sqrt(
-      Math.pow(r - BACKGROUND_COLOR.r, 2) +
-      Math.pow(g - BACKGROUND_COLOR.g, 2) +
-      Math.pow(b - BACKGROUND_COLOR.b, 2)
-    );
-    
-    if (distance <= COLOR_THRESHOLD) {
-      data[i + 3] = 0; // Make transparent
-    }
-  }
-  
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
 }
 
 // =============================================================================
@@ -2531,7 +2493,7 @@ export function CoasterGrid({
           const img = new Image();
           img.crossOrigin = 'anonymous';
           img.onload = () => {
-            const filtered = filterBackgroundColor(img);
+            const filtered = processSpriteSheetToCanvas(img);
             resolve({ id: sheet.id, canvas: filtered });
           };
           img.onerror = () => {
@@ -2555,13 +2517,11 @@ export function CoasterGrid({
     loadSheets();
   }, []);
   
-  // Load water texture
+  // Load water texture (same grade as IsoCity)
   useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => setWaterImage(img);
-    img.onerror = () => console.error('Failed to load water texture');
-    img.src = WATER_ASSET_PATH;
+    loadTexturedAsset(WATER_ASSET_PATH)
+      .then(setWaterImage)
+      .catch(() => console.error('Failed to load water texture'));
   }, []);
   
   // Cloud system

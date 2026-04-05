@@ -13,8 +13,8 @@ All asset sheets follow this format:
 - **Size**: Square, max width and height
 - **Background**: Solid red (#FF0000), no variation in red tone
 - **Grid**: 6 rows x 5 columns (30 cells total)
-- **Style**: Hyper-realistic
-- **Lighting**: No shadows
+- **Style**: Hand-painted fantasy village — warm stone and wood, dark brown ink outlines, painterly shading (Clash-of-Clans–inspired, **not** copying Supercell IP)
+- **Lighting**: Upper-left key light; soft ground shadow toward bottom-right allowed on props (match [`docs/art-direction/reference-village-assets.png`](../../docs/art-direction/reference-village-assets.png))
 
 ## Grid Layout
 
@@ -45,9 +45,9 @@ Using the same format as [reference if available] - red background, 6 rows, 5 co
 
 Each row should be ONE [ASSET]. The first 4 items should be the [ASSET] isometrically projected 4 times for flying/facing north west, north east, south east, and then south west. The last one should be [SPECIAL VIEW DESCRIPTION].
 
-ALL [ASSETS] SHOULD BE HYPER REALISTIC. [CATEGORY DESCRIPTIONS BY ROW].
+ALL [ASSETS] SHOULD BE HAND-PAINTED STYLIZED ISOMETRIC — consistent outline width, medieval-fantasy village materials (grey stone, brown wood, bronze/gold trim). [CATEGORY DESCRIPTIONS BY ROW].
 
-NO SHADOWS. [ADDITIONAL CONSTRAINTS]. Full size, 2048x2048 square.
+Soft cast shadows on the ground OK; no photorealistic textures. [ADDITIONAL CONSTRAINTS]. Full size, 2048x2048 square.
 ```
 
 ## Example Prompts
@@ -59,9 +59,9 @@ Using the same format as this image - red background, 6 rows, 5 columns - I need
 
 Each row should be ONE PLANE. The first 4 items should be the airplane isometrically projected 4 times for flying north west, north east, south east, and then south west. The last one should be a gears down head-first isometric view.
 
-ALL PLANES SHOULD BE HYPER REALISTIC. Commercial or private jets. First 3 rows commercial airliners.
+ALL PLANES SHOULD BE STYLIZED HAND-PAINTED (not photo-real). Commercial or private jets. First 3 rows commercial airliners.
 
-NO SHADOWS. For the first 4, NO LANDING GEAR. Full size, 2048x2048 square.
+For the first 4, NO LANDING GEAR. Full size, 2048x2048 square.
 ```
 
 ### Ground Vehicles
@@ -71,9 +71,9 @@ Red background, 6 rows, 5 columns - asset sheet with VEHICLES for my isometric c
 
 Each row should be ONE VEHICLE. The first 4 items should be the vehicle isometrically projected facing north west, north east, south east, and then south west. The last one should be a 3/4 front isometric view.
 
-ALL VEHICLES SHOULD BE HYPER REALISTIC. Row 1-2: sedans. Row 3-4: SUVs. Row 5-6: trucks.
+ALL VEHICLES SHOULD BE STYLIZED HAND-PAINTED. Row 1-2: sedans. Row 3-4: SUVs. Row 5-6: trucks.
 
-NO SHADOWS. Full size, 2048x2048 square.
+Full size, 2048x2048 square.
 ```
 
 ### Boats/Ships
@@ -83,9 +83,9 @@ Red background, 6 rows, 5 columns - asset sheet with BOATS for my isometric city
 
 Each row should be ONE BOAT. The first 4 items should be the boat isometrically projected facing north west, north east, south east, and then south west. The last one should be a docked/stationary overhead isometric view.
 
-ALL BOATS SHOULD BE HYPER REALISTIC. Row 1-3: small boats (fishing, sailboat, speedboat). Row 4-6: larger vessels.
+ALL BOATS SHOULD BE STYLIZED HAND-PAINTED. Row 1-3: small boats (fishing, sailboat, speedboat). Row 4-6: larger vessels.
 
-NO SHADOWS. NO WATER/WAKE. Full size, 2048x2048 square.
+NO WATER/WAKE in cells. Full size, 2048x2048 square.
 ```
 
 ## Asset Constraints
@@ -96,7 +96,7 @@ NO SHADOWS. NO WATER/WAKE. Full size, 2048x2048 square.
 | Helicopters | Rotors visible, no motion blur |
 | Vehicles | Wheels visible, no reflections |
 | Boats | No water, no wake effects |
-| Buildings | Consistent lighting angle |
+| Buildings | Consistent upper-left lighting; brown ink outlines; painterly fills |
 
 ## Row Organization
 
@@ -119,6 +119,6 @@ Once the asset sheet is generated:
 | Problem | Solution |
 |---------|----------|
 | Inconsistent sizing | Specify "same size for all assets" |
-| Shadows appearing | Explicitly state "NO SHADOWS" |
+| Unwanted harsh shadows | Ask for soft translucent ground shadow only, or none |
 | Wrong projections | Reference compass directions (NW, NE, SE, SW) |
 | Cut-off assets | Add "centered in each cell" to prompt |

@@ -5,6 +5,7 @@ import { useGame } from '@/context/GameContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getSpriteCoords } from '@/lib/renderConfig';
+import { loadSpriteImage } from '@/components/game/imageLoader';
 
 export function SpriteTestPanel({ onClose }: { onClose: () => void }) {
   const { currentSpritePack } = useGame();
@@ -22,38 +23,35 @@ export function SpriteTestPanel({ onClose }: { onClose: () => void }) {
     infrastructure: null,
   });
   
-  // Load all sprite sheets from current pack
+  // Load all sprite sheets from current pack (same chroma + grade as in-game)
   useEffect(() => {
-    const loadSheet = (src: string | undefined, key: string): Promise<void> => {
+    let cancelled = false;
+    const loadOne = async (key: keyof typeof spriteSheets, src: string | undefined) => {
       if (!src) {
-        setSpriteSheets(prev => ({ ...prev, [key]: null }));
-        return Promise.resolve();
+        if (!cancelled) setSpriteSheets((prev) => ({ ...prev, [key]: null }));
+        return;
       }
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          setSpriteSheets(prev => ({ ...prev, [key]: img }));
-          resolve();
-        };
-        img.onerror = () => {
-          setSpriteSheets(prev => ({ ...prev, [key]: null }));
-          resolve();
-        };
-        img.src = src;
-      });
+      try {
+        const img = await loadSpriteImage(src, true);
+        if (!cancelled) setSpriteSheets((prev) => ({ ...prev, [key]: img }));
+      } catch {
+        if (!cancelled) setSpriteSheets((prev) => ({ ...prev, [key]: null }));
+      }
     };
-    
-    Promise.all([
-      loadSheet(currentSpritePack.src, 'main'),
-      loadSheet(currentSpritePack.constructionSrc, 'construction'),
-      loadSheet(currentSpritePack.abandonedSrc, 'abandoned'),
-      loadSheet(currentSpritePack.denseSrc, 'dense'),
-      loadSheet(currentSpritePack.modernSrc, 'modern'),
-      loadSheet(currentSpritePack.parksSrc, 'parks'),
-      loadSheet(currentSpritePack.parksConstructionSrc, 'parksConstruction'),
-      loadSheet(currentSpritePack.servicesSrc, 'services'),
-      loadSheet(currentSpritePack.infrastructureSrc, 'infrastructure'),
+    void Promise.all([
+      loadOne('main', currentSpritePack.src),
+      loadOne('construction', currentSpritePack.constructionSrc),
+      loadOne('abandoned', currentSpritePack.abandonedSrc),
+      loadOne('dense', currentSpritePack.denseSrc),
+      loadOne('modern', currentSpritePack.modernSrc),
+      loadOne('parks', currentSpritePack.parksSrc),
+      loadOne('parksConstruction', currentSpritePack.parksConstructionSrc),
+      loadOne('services', currentSpritePack.servicesSrc),
+      loadOne('infrastructure', currentSpritePack.infrastructureSrc),
     ]);
+    return () => {
+      cancelled = true;
+    };
   }, [currentSpritePack]);
   
   const availableTabs = useMemo(() => [

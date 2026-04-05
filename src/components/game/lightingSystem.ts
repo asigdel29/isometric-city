@@ -46,7 +46,7 @@ export function getAmbientColor(hour: number): { r: number; g: number; b: number
       b: Math.round(90 - 20 * t) 
     };
   }
-  return { r: 20, g: 30, b: 60 }; // Night
+  return { r: 72, g: 68, b: 88 }; // Night — softer “ink on paper”, not harsh blue-black
 }
 
 /**

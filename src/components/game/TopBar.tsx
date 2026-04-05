@@ -157,7 +157,7 @@ export const StatsPanel = React.memo(function StatsPanel() {
   const m = useMessages();
   
   return (
-    <div className="h-8 bg-secondary/50 border-b border-border flex items-center justify-center gap-8 text-xs">
+    <div className="h-8 stats-bar flex items-center justify-center gap-8 text-xs">
       <MiniStat icon={<HappyIcon size={12} />} label={String(m(UI_LABELS.happiness))} value={stats.happiness} />
       <MiniStat icon={<HealthIcon size={12} />} label={String(m(UI_LABELS.health))} value={stats.health} />
       <MiniStat icon={<EducationIcon size={12} />} label={String(m(UI_LABELS.education))} value={stats.education} />
@@ -184,7 +184,7 @@ export const TopBar = React.memo(function TopBar() {
       <div className="flex items-center gap-6">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-foreground font-semibold text-sm">{cityName}</h1>
+            <h1 className="text-foreground font-display font-semibold text-sm tracking-wide">{cityName}</h1>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground text-xs font-mono tabular-nums">
             <Tooltip>

@@ -66,12 +66,22 @@ const UI_LABELS = {
   developerTools: msg('Developer Tools'),
   openSpriteTestView: msg('Open Sprite Test View'),
   loadExampleState: msg('Load Example State'),
+  loadCreateCityExample: msg('Load create city example'),
+  loadCreateCityExampleDesc: msg('Fresh generated map (50×50) to build from scratch — same as a new game terrain snapshot.'),
   dayNightMode: msg('Day/Night Mode'),
   dayNightModeDesc: msg('Override the time-of-day appearance without affecting time progression'),
   auto: msg('Auto'),
   day: msg('Day'),
   night: msg('Night'),
   cannotShrink: msg('Cannot shrink city further - minimum size reached.'),
+  aiWorldTitle: msg('AI world simulation'),
+  aiWorldDesc: msg(
+    'Each in-game month, your model may adjust taxes, service funding, simulation speed, or send advisor notes. Requires your own OpenAI-compatible API key.',
+  ),
+  aiWorldConfigure: msg('Configure API key…'),
+  aiWorldOn: msg('Use AI advisor while time is running'),
+  aiWorldConfigured: msg('API configured'),
+  aiWorldNotConfigured: msg('No API key saved'),
 };
 
 // Format a date for display
@@ -128,7 +138,33 @@ function formatMoney(money: number): string {
 }
 
 export function SettingsPanel() {
-  const { state, setActivePanel, setDisastersEnabled, newGame, loadState, exportState, expandCity, shrinkCity, currentSpritePack, availableSpritePacks, setSpritePack, dayNightMode, setDayNightMode, getSavedCityInfo, restoreSavedCity, clearSavedCity, savedCities, saveCity, loadSavedCity, deleteSavedCity, renameSavedCity } = useGame();
+  const {
+    state,
+    setActivePanel,
+    setDisastersEnabled,
+    newGame,
+    loadState,
+    exportState,
+    expandCity,
+    shrinkCity,
+    currentSpritePack,
+    availableSpritePacks,
+    setSpritePack,
+    dayNightMode,
+    setDayNightMode,
+    getSavedCityInfo,
+    restoreSavedCity,
+    clearSavedCity,
+    savedCities,
+    saveCity,
+    loadSavedCity,
+    deleteSavedCity,
+    renameSavedCity,
+    aiWorldSimulationEnabled,
+    saveAiWorldSettings,
+    aiWorldApiConfig,
+    setAiWorldSetupDialogOpen,
+  } = useGame();
   const { disastersEnabled, cityName, gridSize, id: currentCityId } = state;
   const m = useMessages();
   const searchParams = useSearchParams();
@@ -231,6 +267,35 @@ export function SettingsPanel() {
                 checked={disastersEnabled}
                 onCheckedChange={setDisastersEnabled}
               />
+            </div>
+
+            <div className="py-2 border-t border-border pt-4 mt-2">
+              <Label>{m(UI_LABELS.aiWorldTitle)}</Label>
+              <p className="text-muted-foreground text-xs mb-2">{m(UI_LABELS.aiWorldDesc)}</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                {aiWorldApiConfig?.apiKey ? m(UI_LABELS.aiWorldConfigured) : m(UI_LABELS.aiWorldNotConfigured)}
+              </p>
+              <div className="flex flex-col gap-2">
+                <Button variant="outline" className="w-full" onClick={() => setAiWorldSetupDialogOpen(true)}>
+                  {m(UI_LABELS.aiWorldConfigure)}
+                </Button>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-muted-foreground">{m(UI_LABELS.aiWorldOn)}</span>
+                  <Switch
+                    checked={aiWorldSimulationEnabled}
+                    onCheckedChange={(on) => {
+                      if (on && !aiWorldApiConfig?.apiKey) {
+                        setAiWorldSetupDialogOpen(true);
+                        return;
+                      }
+                      saveAiWorldSettings({
+                        simulationEnabled: on,
+                        config: aiWorldApiConfig,
+                      });
+                    }}
+                  />
+                </div>
+              </div>
             </div>
             
             <div className="py-2">
@@ -601,6 +666,16 @@ export function SettingsPanel() {
             >
               {m(UI_LABELS.openSpriteTestView)}
             </Button>
+            <div className="mt-2">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => loadExampleState('create_city_example.json', loadState, setActivePanel)}
+              >
+                {m(UI_LABELS.loadCreateCityExample)}
+              </Button>
+              <p className="text-muted-foreground text-xs mt-1 text-center">{m(UI_LABELS.loadCreateCityExampleDesc)}</p>
+            </div>
             <Button variant="outline" className="w-full mt-2" onClick={() => loadExampleState('example_state.json', loadState, setActivePanel)}>
               Load Example State
             </Button>

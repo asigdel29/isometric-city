@@ -22,9 +22,11 @@ export function openCommandMenu() {
 // Note: name and description store raw message objects for translation
 interface MenuItem {
   id: string;
-  type: 'tool' | 'panel';
+  type: 'tool' | 'panel' | 'action';
   tool?: Tool;
   panel?: 'budget' | 'statistics' | 'advisors' | 'settings';
+  /** Custom command (not a game tool or panel) */
+  action?: 'ai-world-setup';
   name: unknown; // Raw message object from msg()
   description: unknown; // Raw message object from msg()
   cost?: number;
@@ -238,6 +240,16 @@ function buildMenuItems(): MenuItem[] {
     });
   });
 
+  items.push({
+    id: 'action-ai-world',
+    type: 'action',
+    action: 'ai-world-setup',
+    name: msg('AI world simulation'),
+    description: msg('Add your model API key and enable the monthly AI advisor'),
+    category: 'panels',
+    keywords: ['ai', 'llm', 'openai', 'model', 'api', 'simulation', 'advisor', 'world'],
+  });
+
   return items;
 }
 
@@ -245,7 +257,7 @@ const ALL_MENU_ITEMS = buildMenuItems();
 
 export function CommandMenu() {
   const { isMobileDevice } = useMobile();
-  const { state, setTool, setActivePanel } = useGame();
+  const { state, setTool, setActivePanel, setAiWorldSetupDialogOpen } = useGame();
   const { stats } = state;
   const m = useMessages();
 
@@ -345,9 +357,11 @@ export function CommandMenu() {
       setTool(item.tool);
     } else if (item.type === 'panel' && item.panel) {
       setActivePanel(state.activePanel === item.panel ? 'none' : item.panel);
+    } else if (item.type === 'action' && item.action === 'ai-world-setup') {
+      setAiWorldSetupDialogOpen(true);
     }
     setOpen(false);
-  }, [setTool, setActivePanel, state.activePanel]);
+  }, [setTool, setActivePanel, setAiWorldSetupDialogOpen, state.activePanel]);
 
   // Scroll selected item into view
   useEffect(() => {

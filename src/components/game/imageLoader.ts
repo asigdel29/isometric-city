@@ -4,10 +4,16 @@
 // Handles loading and caching of sprite images with optional background filtering
 // and WebP optimization for faster loading on slow connections.
 
-// Background color to filter from sprite sheets
-const BACKGROUND_COLOR = { r: 255, g: 0, b: 0 };
-// Color distance threshold - pixels within this distance will be made transparent
-const COLOR_THRESHOLD = 155; // Adjust this value to be more/less aggressive
+import {
+  GAME_ASSET_SCHEME_VERSION,
+  CHROMA_KEY_THRESHOLD,
+  processGameAssetRgba,
+} from '@/lib/gameAssetColorGrade';
+
+/** @deprecated use GAME_ASSET_SCHEME_VERSION */
+export const SPRITE_FRONTEND_SCHEME_VERSION = GAME_ASSET_SCHEME_VERSION;
+
+export { applyFrontendSchemeToRgb } from '@/lib/gameAssetColorGrade';
 
 // Image cache for building sprites
 const imageCache = new Map<string, HTMLImageElement>();
@@ -27,7 +33,7 @@ async function checkWebPSupport(): Promise<boolean> {
   if (webpSupported !== null) {
     return webpSupported;
   }
-  
+
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -59,14 +65,16 @@ function getWebPPath(src: string): string | null {
  */
 export function onImageLoaded(callback: ImageLoadCallback): () => void {
   imageLoadCallbacks.add(callback);
-  return () => { imageLoadCallbacks.delete(callback); };
+  return () => {
+    imageLoadCallbacks.delete(callback);
+  };
 }
 
 /**
  * Notify all registered callbacks that an image has loaded
  */
 function notifyImageLoaded() {
-  imageLoadCallbacks.forEach(cb => cb());
+  imageLoadCallbacks.forEach((cb) => cb());
 }
 
 /**
@@ -97,12 +105,12 @@ export async function loadImage(src: string): Promise<HTMLImageElement> {
   if (imageCache.has(src)) {
     return imageCache.get(src)!;
   }
-  
+
   // Check if we should try WebP
   const webpPath = getWebPPath(src);
   if (webpPath) {
     const supportsWebP = await checkWebPSupport();
-    
+
     if (supportsWebP) {
       // Try loading WebP first
       try {
@@ -116,82 +124,41 @@ export async function loadImage(src: string): Promise<HTMLImageElement> {
       }
     }
   }
-  
+
   // Load PNG directly
   return loadImageDirect(src);
 }
 
 /**
- * Filters colors close to the background color from an image, making them transparent
- * @param img The source image to process
- * @param threshold Maximum color distance to consider as background (default: COLOR_THRESHOLD)
- * @returns A new HTMLImageElement with filtered colors made transparent
+ * Chroma-key + color grade (sprite sheets).
  */
-export function filterBackgroundColor(img: HTMLImageElement, threshold: number = COLOR_THRESHOLD): Promise<HTMLImageElement> {
+export function filterBackgroundColor(
+  img: HTMLImageElement,
+  threshold: number = CHROMA_KEY_THRESHOLD,
+): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     try {
-      console.log('Starting background color filtering...', { 
-        imageSize: `${img.naturalWidth || img.width}x${img.naturalHeight || img.height}`,
-        threshold,
-        backgroundColor: BACKGROUND_COLOR
-      });
-      
       const canvas = document.createElement('canvas');
       canvas.width = img.naturalWidth || img.width;
       canvas.height = img.naturalHeight || img.height;
-      
+
       const ctx = canvas.getContext('2d');
       if (!ctx) {
         reject(new Error('Could not get canvas context'));
         return;
       }
-      
-      // Draw the original image to the canvas
+
       ctx.drawImage(img, 0, 0);
-      
-      // Get image data
+
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      
-      console.log(`Processing ${data.length / 4} pixels...`);
-      
-      // Process each pixel
-      let filteredCount = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        
-        // Calculate color distance using Euclidean distance in RGB space
-        const distance = Math.sqrt(
-          Math.pow(r - BACKGROUND_COLOR.r, 2) +
-          Math.pow(g - BACKGROUND_COLOR.g, 2) +
-          Math.pow(b - BACKGROUND_COLOR.b, 2)
-        );
-        
-        // If the color is close to the background color, make it transparent
-        if (distance <= threshold) {
-          data[i + 3] = 0; // Set alpha to 0 (transparent)
-          filteredCount++;
-        }
-      }
-      
-      // Debug: log filtering results
-      const totalPixels = data.length / 4;
-      const percentage = filteredCount > 0 ? ((filteredCount / totalPixels) * 100).toFixed(2) : '0.00';
-      console.log(`Filtered ${filteredCount} pixels (${percentage}%) from sprite sheet`);
-      
-      // Put the modified image data back
+      processGameAssetRgba(imageData.data, { chromaKey: true, threshold });
       ctx.putImageData(imageData, 0, 0);
-      
-      // Create a new image from the processed canvas
+
       const filteredImg = new Image();
       filteredImg.onload = () => {
-        console.log('Filtered image created successfully');
         resolve(filteredImg);
       };
-      filteredImg.onerror = (error) => {
-        console.error('Failed to create filtered image:', error);
+      filteredImg.onerror = () => {
         reject(new Error('Failed to create filtered image'));
       };
       filteredImg.src = canvas.toDataURL();
@@ -202,18 +169,64 @@ export function filterBackgroundColor(img: HTMLImageElement, threshold: number =
 }
 
 /**
+ * Color grade only (no chroma key) — water.png and similar full textures.
+ */
+function gradeFullRasterImage(img: HTMLImageElement): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      processGameAssetRgba(imageData.data, { chromaKey: false });
+      ctx.putImageData(imageData, 0, 0);
+      const out = new Image();
+      out.onload = () => resolve(out);
+      out.onerror = () => reject(new Error('Failed to grade image'));
+      out.src = canvas.toDataURL();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+/**
+ * Load and cache a full-bleed raster (e.g. water) with the same grade as sprites.
+ */
+export async function loadTexturedAsset(src: string): Promise<HTMLImageElement> {
+  const cacheKey = `${src}_tex_v${GAME_ASSET_SCHEME_VERSION}`;
+  if (imageCache.has(cacheKey)) {
+    return imageCache.get(cacheKey)!;
+  }
+  const raw = await loadImage(src);
+  const graded = await gradeFullRasterImage(raw);
+  imageCache.set(cacheKey, graded);
+  notifyImageLoaded();
+  return graded;
+}
+
+export function getTexturedAsset(src: string): HTMLImageElement | undefined {
+  return imageCache.get(`${src}_tex_v${GAME_ASSET_SCHEME_VERSION}`);
+}
+
+/**
  * Loads an image and applies background color filtering if it's a sprite sheet
  * @param src The image source path
  * @param applyFilter Whether to apply background color filtering (default: true for sprite sheets)
  * @returns Promise resolving to the loaded (and optionally filtered) image
  */
 export function loadSpriteImage(src: string, applyFilter: boolean = true): Promise<HTMLImageElement> {
-  // Check if this is already cached (as filtered version)
-  const cacheKey = applyFilter ? `${src}_filtered` : src;
+  const cacheKey = applyFilter ? `${src}_f_v${GAME_ASSET_SCHEME_VERSION}` : src;
   if (imageCache.has(cacheKey)) {
     return Promise.resolve(imageCache.get(cacheKey)!);
   }
-  
+
   return loadImage(src).then((img) => {
     if (applyFilter) {
       return filterBackgroundColor(img).then((filteredImg: HTMLImageElement) => {
@@ -231,7 +244,7 @@ export function loadSpriteImage(src: string, applyFilter: boolean = true): Promi
  * @param filtered Whether to check for the filtered version
  */
 export function isImageCached(src: string, filtered: boolean = false): boolean {
-  const cacheKey = filtered ? `${src}_filtered` : src;
+  const cacheKey = filtered ? `${src}_f_v${GAME_ASSET_SCHEME_VERSION}` : src;
   return imageCache.has(cacheKey);
 }
 
@@ -241,7 +254,7 @@ export function isImageCached(src: string, filtered: boolean = false): boolean {
  * @param filtered Whether to get the filtered version
  */
 export function getCachedImage(src: string, filtered: boolean = false): HTMLImageElement | undefined {
-  const cacheKey = filtered ? `${src}_filtered` : src;
+  const cacheKey = filtered ? `${src}_f_v${GAME_ASSET_SCHEME_VERSION}` : src;
   return imageCache.get(cacheKey);
 }
 

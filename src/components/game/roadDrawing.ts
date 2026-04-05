@@ -269,7 +269,7 @@ export function drawRoad(
   // ============================================
   // Use different asphalt color for highways
   ctx.fillStyle = mergeInfo.type === 'highway' ? '#3d3d3d' : 
-                  mergeInfo.type === 'avenue' ? '#454545' : ROAD_COLORS.ASPHALT;
+                  mergeInfo.type === 'avenue' ? '#a8a6a0' : ROAD_COLORS.ASPHALT;
   
   // Draw road segments
   if (north) {
@@ -454,7 +454,7 @@ export function drawRoad(
             ctx.fillRect(westEdgeX - medianW, westEdgeY - 2, medianW * 2, (southEdgeY - westEdgeY) + 4);
             
             // Draw small plants/shrubs
-            ctx.fillStyle = '#4a7c3f';
+            ctx.fillStyle = '#c4dfb8';
             const plantSpacing = 10;
             const numPlants = Math.floor(Math.abs(southEdgeY - westEdgeY) / plantSpacing);
             for (let i = 1; i < numPlants; i++) {
@@ -488,7 +488,7 @@ export function drawRoad(
             const medianW = 3;
             ctx.fillRect(eastEdgeX - 2, eastEdgeY - medianW, (westEdgeX - eastEdgeX) + 4, medianW * 2);
             
-            ctx.fillStyle = '#4a7c3f';
+            ctx.fillStyle = '#c4dfb8';
             const plantSpacing = 10;
             const numPlants = Math.floor(Math.abs(westEdgeX - eastEdgeX) / plantSpacing);
             for (let i = 1; i < numPlants; i++) {

@@ -1214,8 +1214,9 @@ export function createInitialGameState(size: number = DEFAULT_GRID_SIZE, cityNam
     disastersEnabled: true,
     adjacentCities,
     waterBodies,
-    gameVersion: 0,
+    gameVersion: 1,
     cities: [defaultCity],
+    customWorldArt: [],
   };
 }
 
@@ -3103,11 +3104,13 @@ export function bulldozeTile(state: GameState, x: number, y: number): GameState 
   if (origin) {
     // Bulldoze the entire multi-tile building
     const size = getBuildingSize(origin.buildingType);
+    const cleared: { x: number; y: number }[] = [];
     for (let dy = 0; dy < size.height; dy++) {
       for (let dx = 0; dx < size.width; dx++) {
         const clearX = origin.originX + dx;
         const clearY = origin.originY + dy;
         if (clearX < state.gridSize && clearY < state.gridSize) {
+          cleared.push({ x: clearX, y: clearY });
           newGrid[clearY][clearX].building = createBuilding('grass');
           newGrid[clearY][clearX].zone = 'none';
           newGrid[clearY][clearX].hasRailOverlay = false; // Clear rail overlay
@@ -3115,6 +3118,10 @@ export function bulldozeTile(state: GameState, x: number, y: number): GameState 
         }
       }
     }
+    const customWorldArt = (state.customWorldArt ?? []).filter(
+      (a) => !cleared.some((c) => c.x === a.x && c.y === a.y)
+    );
+    return { ...state, grid: newGrid, customWorldArt };
   } else {
     // Single tile bulldoze
     newGrid[y][x].building = createBuilding('grass');
@@ -3123,7 +3130,9 @@ export function bulldozeTile(state: GameState, x: number, y: number): GameState 
     // Don't remove subway when bulldozing surface buildings
   }
 
-  return { ...state, grid: newGrid };
+  const customWorldArt = (state.customWorldArt ?? []).filter((a) => a.x !== x || a.y !== y);
+
+  return { ...state, grid: newGrid, customWorldArt };
 }
 
 // Place a subway line underground (doesn't affect surface buildings)
@@ -3572,6 +3581,7 @@ export function generateRandomAdvancedCity(size: number = DEFAULT_GRID_SIZE, cit
     history: [],
     activePanel: 'none',
     disastersEnabled: true,
+    customWorldArt: [],
   };
 }
 

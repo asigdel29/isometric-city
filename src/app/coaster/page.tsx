@@ -23,43 +23,7 @@ import {
 } from '@/games/coaster/saveUtils';
 import { COASTER_SPRITE_PACK, getSpriteInfo, getSpriteRect } from '@/games/coaster/lib/coasterRenderConfig';
 import { GameState as CoasterGameState } from '@/games/coaster/types';
-
-// Background color to filter from sprite sheets (red)
-const BACKGROUND_COLOR = { r: 255, g: 0, b: 0 };
-const COLOR_THRESHOLD = 155;
-
-// Filter red background from sprite sheet
-function filterBackgroundColor(img: HTMLImageElement): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = img.naturalWidth || img.width;
-  canvas.height = img.naturalHeight || img.height;
-  
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return canvas;
-  
-  ctx.drawImage(img, 0, 0);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    
-    const distance = Math.sqrt(
-      Math.pow(r - BACKGROUND_COLOR.r, 2) +
-      Math.pow(g - BACKGROUND_COLOR.g, 2) +
-      Math.pow(b - BACKGROUND_COLOR.b, 2)
-    );
-    
-    if (distance <= COLOR_THRESHOLD) {
-      data[i + 3] = 0; // Make transparent
-    }
-  }
-  
-  ctx.putImageData(imageData, 0, 0);
-  return canvas;
-}
+import { processSpriteSheetToCanvas } from '@/lib/gameAssetColorGrade';
 
 // Shuffle array using Fisher-Yates algorithm
 function shuffleArray<T>(array: T[]): T[] {
@@ -126,7 +90,7 @@ function CoasterSpriteGallery({ count: defaultCount = 16, cols: defaultCols = 4,
       const img = new Image();
       img.onload = () => {
         // Filter red background
-        const filtered = filterBackgroundColor(img);
+        const filtered = processSpriteSheetToCanvas(img);
         loaded.set(sheetId, filtered);
         loadCount++;
         if (loadCount === sheetsToLoad.size) {

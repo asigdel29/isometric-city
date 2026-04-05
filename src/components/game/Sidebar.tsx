@@ -38,7 +38,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { openCommandMenu } from '@/components/ui/CommandMenu';
-import { Users } from 'lucide-react';
+import { Users, PenLine } from 'lucide-react';
 import { ShareModal } from '@/components/multiplayer/ShareModal';
 import { useMultiplayerOptional } from '@/context/MultiplayerContext';
 import {
@@ -463,7 +463,13 @@ function ExitDialog({
 }
 
 // Memoized Sidebar Component
-export const Sidebar = React.memo(function Sidebar({ onExit }: { onExit?: () => void }) {
+export const Sidebar = React.memo(function Sidebar({
+  onExit,
+  onOpenSketchLab,
+}: {
+  onExit?: () => void;
+  onOpenSketchLab?: () => void;
+}) {
   const { state, setTool, setActivePanel, saveCity, expandCity, shrinkCity } = useGame();
   const { selectedTool, stats, activePanel } = state;
   const [showExitDialog, setShowExitDialog] = useState(false);
@@ -567,7 +573,9 @@ export const Sidebar = React.memo(function Sidebar({ onExit }: { onExit?: () => 
     <div className="w-56 bg-sidebar border-r border-sidebar-border flex flex-col h-screen fixed left-0 top-0 z-40">
       <div className="px-4 py-4 border-b border-sidebar-border">
         <div className="flex items-center justify-between">
-          <span className="text-sidebar-foreground font-bold tracking-tight">ISOCITY</span>
+          <span className="text-sidebar-foreground font-display font-bold text-lg tracking-tight text-gold">
+            ai native city
+          </span>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
@@ -657,11 +665,24 @@ export const Sidebar = React.memo(function Sidebar({ onExit }: { onExit?: () => 
               })}
               {/* Expand City submenu - appears after TOOLS category */}
               {category === 'TOOLS' && (
-                <ActionSubmenu
-                  key="expandCity"
-                  label={CATEGORY_LABELS.expandCity}
-                  actions={expandCityActions}
-                />
+                <>
+                  {onOpenSketchLab && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start gap-3 px-3 py-2 h-auto text-sm border border-primary/40"
+                      onClick={onOpenSketchLab}
+                    >
+                      <PenLine className="w-4 h-4 shrink-0 opacity-90" />
+                      <span className="flex-1 text-left">{m(msg('Sketch Lab'))}</span>
+                    </Button>
+                  )}
+                  <ActionSubmenu
+                    key="expandCity"
+                    label={CATEGORY_LABELS.expandCity}
+                    actions={expandCityActions}
+                  />
+                </>
               )}
               {/* Zoning submenu - appears after ZONES category */}
               {category === 'ZONES' && (

@@ -33,48 +33,48 @@ export type BeachEdge = 'north' | 'east' | 'south' | 'west';
 // Color Constants
 // ============================================================================
 
-/** Zone-based color schemes for grass tiles */
+/** Zone-based color schemes — soft “colored pencil on paper” (matches landing notebook) */
 export const ZONE_COLORS: Record<ZoneType, TileColorScheme> = {
   none: {
-    top: '#4a7c3f',
-    left: '#3d6634',
-    right: '#5a8f4f',
-    stroke: '#2d4a26',
+    top: '#c4dfb8',
+    left: '#a8c9a0',
+    right: '#dcecc8',
+    stroke: '#6b8a62',
   },
   residential: {
-    top: '#2d5a2d',
-    left: '#1d4a1d',
-    right: '#3d6a3d',
-    stroke: '#22c55e',
+    top: '#a8d4a8',
+    left: '#8fbc8f',
+    right: '#c8e6c8',
+    stroke: '#4a7a58',
   },
   commercial: {
-    top: '#2a4a6a',
-    left: '#1a3a5a',
-    right: '#3a5a7a',
-    stroke: '#3b82f6',
+    top: '#a8c0dc',
+    left: '#8ba4c4',
+    right: '#c8d8ec',
+    stroke: '#5a7090',
   },
   industrial: {
-    top: '#6a4a2a',
-    left: '#5a3a1a',
-    right: '#7a5a3a',
-    stroke: '#f59e0b',
+    top: '#d4c4a8',
+    left: '#b8a080',
+    right: '#e8dcc4',
+    stroke: '#9a8060',
   },
 };
 
-/** Zone border colors (dashed lines) */
+/** Zone border colors (dashed lines) — muted pencil */
 export const ZONE_BORDER_COLORS: Record<ZoneType, string> = {
   none: 'transparent',
-  residential: '#22c55e',
-  commercial: '#3b82f6',
-  industrial: '#f59e0b',
+  residential: '#5a9a68',
+  commercial: '#5a80b0',
+  industrial: '#c49a50',
 };
 
 /** Grey base tile colors for buildings */
 export const GREY_TILE_COLORS: TileColorScheme = {
-  top: '#6b7280',
-  left: '#4b5563',
-  right: '#9ca3af',
-  stroke: '#374151',
+  top: '#c4c8c4',
+  left: '#a8aca8',
+  right: '#dcdedc',
+  stroke: '#6e726e',
 };
 
 /** Beach/sidewalk colors */

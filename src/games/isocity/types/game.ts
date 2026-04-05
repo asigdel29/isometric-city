@@ -8,8 +8,18 @@ import { ZoneType } from './zones';
 import { Stats, Budget, CityEconomy, HistoryPoint } from './economy';
 import { ServiceCoverage } from './services';
 
+/** Player-placed sketch or AI-generated decal (1×1 tile); stored as PNG data URL */
+export type CustomWorldArtItem = {
+  id: string;
+  x: number;
+  y: number;
+  /** image/png data URL */
+  imageDataUrl: string;
+};
+
 export type Tool =
   | 'select' | 'bulldoze' | 'road' | 'rail' | 'subway'
+  | 'place_sketch'
   | 'expand_city' | 'shrink_city' | 'tree'
   | 'zone_residential' | 'zone_commercial' | 'zone_industrial' | 'zone_dezone'
   | 'zone_water' | 'zone_land'
@@ -34,6 +44,7 @@ export interface ToolInfo {
 
 export const TOOL_INFO: Record<Tool, ToolInfo> = {
   select: { name: msg('Select'), cost: 0, description: msg('Click to view tile info') },
+  place_sketch: { name: msg('Place sketch'), cost: 0, description: msg('Tap a tile to place your artwork') },
   bulldoze: { name: msg('Bulldoze'), cost: 10, description: msg('Remove buildings and zones') },
   road: { name: msg('Road'), cost: 25, description: msg('Connect your city') },
   rail: { name: msg('Rail'), cost: 40, description: msg('Build railway tracks') },
@@ -173,6 +184,8 @@ export interface GameState {
   waterBodies: WaterBody[];
   gameVersion: number;
   cities: City[];
+  /** Decorative art placed on single tiles (Sketch Lab); excluded from simulation */
+  customWorldArt: CustomWorldArtItem[];
 }
 
 export interface SavedCityMeta {

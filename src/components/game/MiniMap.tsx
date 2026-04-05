@@ -92,7 +92,7 @@ export const MiniMap = React.memo(function MiniMap({ onNavigate, viewport }: Min
           else if (tile.zone === 'commercial') color = '#1d4ed8';
           else if (tile.zone === 'industrial' && buildingType !== 'grass') color = '#f59e0b';
           else if (tile.zone === 'industrial') color = '#b45309';
-          else if (serviceBuildings.has(buildingType)) color = '#c084fc';
+          else if (serviceBuildings.has(buildingType)) color = '#a855f7';
           else if (buildingType === 'power_plant') color = '#f97316';
           else if (buildingType === 'water_tower') color = '#06b6d4';
           else if (parkBuildings.has(buildingType)) color = '#84cc16';
@@ -192,7 +192,7 @@ export const MiniMap = React.memo(function MiniMap({ onNavigate, viewport }: Min
   }, [isDragging]);
   
   return (
-    <Card className="fixed bottom-6 right-8 p-3 shadow-lg bg-card/90 border-border/70 z-50">
+    <Card className="fixed bottom-6 right-8 p-3 minimap-container z-50 rounded-lg">
       <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground font-semibold mb-2">
         {m(MINIMAP_LABEL)}
       </div>
@@ -220,7 +220,7 @@ export const MiniMap = React.memo(function MiniMap({ onNavigate, viewport }: Min
           <span className="text-muted-foreground">I</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 bg-pink-500 rounded-sm" />
+          <div className="w-2 h-2 bg-violet-500 rounded-sm" />
           <span className="text-muted-foreground">S</span>
         </div>
       </div>

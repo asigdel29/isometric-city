@@ -221,7 +221,7 @@ export function drawAirplanes(
   if (airplanes.length === 0) return;
 
   // Try to get the cached planes sprite sheet
-  const planeSprite = getCachedImage(AIRPLANE_SPRITE_CACHE_KEY, false);
+  const planeSprite = getCachedImage(AIRPLANE_SPRITE_CACHE_KEY, true);
 
   for (const plane of airplanes) {
     // Draw contrails first (behind plane)
@@ -946,7 +946,7 @@ export function drawSeaplanes(
   if (seaplanes.length === 0) return;
 
   // Try to get the cached planes sprite sheet (seaplane is row 4)
-  const planeSprite = getCachedImage(AIRPLANE_SPRITE_CACHE_KEY, false);
+  const planeSprite = getCachedImage(AIRPLANE_SPRITE_CACHE_KEY, true);
 
   for (const seaplane of seaplanes) {
     // Draw wake particles first (when on water)

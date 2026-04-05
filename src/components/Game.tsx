@@ -35,6 +35,9 @@ import {
 import { MiniMap } from '@/components/game/MiniMap';
 import { TopBar, StatsPanel } from '@/components/game/TopBar';
 import { CanvasIsometricGrid } from '@/components/game/CanvasIsometricGrid';
+import { SketchLabDialog } from '@/components/game/SketchLabDialog';
+import { AiWorldModeDialog } from '@/components/game/AiWorldModeDialog';
+import { useAiWorldSimulation } from '@/hooks/useAiWorldSimulation';
 
 // Cargo type names for notifications
 const CARGO_TYPE_NAMES = [msg('containers'), msg('bulk materials'), msg('oil')];
@@ -42,8 +45,22 @@ const CARGO_TYPE_NAMES = [msg('containers'), msg('bulk materials'), msg('oil')];
 export default function Game({ onExit }: { onExit?: () => void }) {
   const gt = useGT();
   const m = useMessages();
-  const { state, setTool, setActivePanel, addMoney, addNotification, setSpeed } = useGame();
+  const {
+    state,
+    setTool,
+    setActivePanel,
+    addMoney,
+    addNotification,
+    setSpeed,
+    setPendingSketchArt,
+    aiWorldSimulationEnabled,
+    aiWorldApiConfig,
+    saveAiWorldSettings,
+    aiWorldSetupDialogOpen,
+    setAiWorldSetupDialogOpen,
+  } = useGame();
   const [overlayMode, setOverlayMode] = useState<OverlayMode>('none');
+  const [sketchLabOpen, setSketchLabOpen] = useState(false);
   const [selectedTile, setSelectedTile] = useState<{ x: number; y: number } | null>(null);
   const [navigationTarget, setNavigationTarget] = useState<{ x: number; y: number } | null>(null);
   const [viewport, setViewport] = useState<{ offset: { x: number; y: number }; zoom: number; canvasSize: { width: number; height: number } } | null>(null);
@@ -78,7 +95,20 @@ export default function Game({ onExit }: { onExit?: () => void }) {
     players,
     broadcastPlace,
     leaveRoom,
+    broadcastTaxRate,
+    broadcastBudget,
+    broadcastSpeed,
   } = useMultiplayerSync();
+
+  useAiWorldSimulation({
+    enabled: aiWorldSimulationEnabled,
+    config: aiWorldApiConfig,
+    isMultiplayer,
+    isHost,
+    broadcastTaxRate,
+    broadcastBudget,
+    broadcastSpeed,
+  });
   
   const { copied: copiedRoomLink, handleCopyRoomLink } = useCopyRoomLink(roomCode, 'coop');
   const initialSelectedToolRef = useRef<Tool | null>(null);
@@ -222,6 +252,15 @@ export default function Game({ onExit }: { onExit?: () => void }) {
   const bargeDeliveryCountRef = useRef(0);
   
   // Handle barge cargo delivery - adds money to the city treasury
+  const handlePlaceSketchFromLab = useCallback(
+    (imageDataUrl: string) => {
+      setPendingSketchArt(imageDataUrl);
+      setTool('place_sketch');
+      setSketchLabOpen(false);
+    },
+    [setPendingSketchArt, setTool],
+  );
+
   const handleBargeDelivery = useCallback((cargoValue: number, cargoType: number) => {
     addMoney(cargoValue);
     bargeDeliveryCountRef.current++;
@@ -241,7 +280,7 @@ export default function Game({ onExit }: { onExit?: () => void }) {
   if (isMobile) {
     return (
       <TooltipProvider>
-        <div className="w-full h-full overflow-hidden bg-background flex flex-col">
+        <div className="w-full h-full min-h-0 overflow-hidden notebook-paper flex flex-col">
           {/* Mobile Top Bar */}
           <MobileTopBar 
             selectedTile={selectedTile && state.selectedTool === 'select' ? state.grid[selectedTile.y][selectedTile.x] : null}
@@ -260,20 +299,25 @@ export default function Game({ onExit }: { onExit?: () => void }) {
           )}
           
           {/* Main canvas area - fills remaining space, with padding for top/bottom bars */}
-          <div className="flex-1 relative overflow-hidden" style={{ paddingTop: '72px', paddingBottom: '76px' }}>
-            <CanvasIsometricGrid 
-              overlayMode={overlayMode} 
-              selectedTile={selectedTile} 
-              setSelectedTile={setSelectedTile}
-              isMobile={true}
-              onBargeDelivery={handleBargeDelivery}
-            />
+          <div
+            className="flex-1 relative min-h-0 overflow-hidden"
+            style={{ paddingTop: '72px', paddingBottom: '76px' }}
+          >
+            <div className="absolute inset-0 min-h-0 game-canvas-filter">
+              <CanvasIsometricGrid 
+                overlayMode={overlayMode} 
+                selectedTile={selectedTile} 
+                setSelectedTile={setSelectedTile}
+                isMobile={true}
+                onBargeDelivery={handleBargeDelivery}
+              />
+            </div>
             
             {/* Multiplayer Players Indicator - Mobile */}
             {isMultiplayer && (
               <div className="absolute top-2 right-2 z-20">
-                <div className="bg-slate-900/90 border border-slate-700 rounded-lg px-2 py-1.5 shadow-lg">
-                  <div className="flex items-center gap-1.5 text-xs text-white">
+                <div className="game-panel rounded-lg px-2 py-1.5">
+                  <div className="flex items-center gap-1.5 text-xs text-foreground">
                     {roomCode && (
                       <>
                         <span className="font-mono tracking-wider">{roomCode}</span>
@@ -285,7 +329,7 @@ export default function Game({ onExit }: { onExit?: () => void }) {
                           {copiedRoomLink ? (
                             <Check className="w-3 h-3 text-green-400" />
                           ) : (
-                            <Copy className="w-3 h-3 text-slate-400" />
+                            <Copy className="w-3 h-3 text-muted-foreground" />
                           )}
                         </button>
                       </>
@@ -294,7 +338,7 @@ export default function Game({ onExit }: { onExit?: () => void }) {
                   {players.length > 0 && (
                     <div className="mt-1 space-y-0.5">
                       {players.map((player) => (
-                        <div key={player.id} className="flex items-center gap-1 text-[10px] text-slate-400">
+                        <div key={player.id} className="flex items-center gap-1 text-[10px] text-muted-foreground">
                           <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
                           {player.name}
                         </div>
@@ -311,6 +355,7 @@ export default function Game({ onExit }: { onExit?: () => void }) {
             onOpenPanel={(panel) => setActivePanel(panel)}
             overlayMode={overlayMode}
             setOverlayMode={setOverlayMode}
+            onOpenSketchLab={() => setSketchLabOpen(true)}
           />
           
           {/* Panels - render as fullscreen modals on mobile */}
@@ -328,6 +373,20 @@ export default function Game({ onExit }: { onExit?: () => void }) {
             onContinue={onTipContinue}
             onSkipAll={onTipSkipAll}
           />
+
+          <SketchLabDialog
+            open={sketchLabOpen}
+            onOpenChange={setSketchLabOpen}
+            onPlaceOnMap={handlePlaceSketchFromLab}
+          />
+
+          <AiWorldModeDialog
+            open={aiWorldSetupDialogOpen}
+            onOpenChange={setAiWorldSetupDialogOpen}
+            initialConfig={aiWorldApiConfig}
+            onSave={(config) => saveAiWorldSettings({ simulationEnabled: true, config })}
+            onClear={() => saveAiWorldSettings({ simulationEnabled: false, config: null })}
+          />
         </div>
       </TooltipProvider>
     );
@@ -337,29 +396,31 @@ export default function Game({ onExit }: { onExit?: () => void }) {
   return (
     <TooltipProvider>
       <div className="w-full h-full min-h-[720px] overflow-hidden bg-background flex">
-        <Sidebar onExit={onExit} />
+        <Sidebar onExit={onExit} onOpenSketchLab={() => setSketchLabOpen(true)} />
         
-        <div className="flex-1 flex flex-col ml-56">
+        <div className="flex-1 flex flex-col min-h-0 ml-56">
           <TopBar />
           <StatsPanel />
-          <div className="flex-1 relative overflow-visible">
-            <CanvasIsometricGrid 
-              overlayMode={overlayMode} 
-              selectedTile={selectedTile} 
-              setSelectedTile={setSelectedTile}
-              navigationTarget={navigationTarget}
-              onNavigationComplete={() => setNavigationTarget(null)}
-              onViewportChange={setViewport}
-              onBargeDelivery={handleBargeDelivery}
-            />
+          <div className="flex-1 relative min-h-0 overflow-hidden notebook-paper">
+            <div className="absolute inset-0 min-h-0 game-canvas-filter">
+              <CanvasIsometricGrid 
+                overlayMode={overlayMode} 
+                selectedTile={selectedTile} 
+                setSelectedTile={setSelectedTile}
+                navigationTarget={navigationTarget}
+                onNavigationComplete={() => setNavigationTarget(null)}
+                onViewportChange={setViewport}
+                onBargeDelivery={handleBargeDelivery}
+              />
+            </div>
             <OverlayModeToggle overlayMode={overlayMode} setOverlayMode={setOverlayMode} />
             <MiniMap onNavigate={(x, y) => setNavigationTarget({ x, y })} viewport={viewport} />
             
             {/* Multiplayer Players Indicator */}
             {isMultiplayer && (
               <div className="absolute top-4 right-4 z-20">
-                <div className="bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 shadow-lg min-w-[120px]">
-                  <div className="flex items-center gap-2 text-sm text-white">
+                <div className="game-panel rounded-lg px-3 py-2 min-w-[120px]">
+                  <div className="flex items-center gap-2 text-sm text-foreground">
                     {roomCode && (
                       <>
                         <span className="font-mono font-medium tracking-wider">{roomCode}</span>
@@ -371,7 +432,7 @@ export default function Game({ onExit }: { onExit?: () => void }) {
                           {copiedRoomLink ? (
                             <Check className="w-3.5 h-3.5 text-green-400" />
                           ) : (
-                            <Copy className="w-3.5 h-3.5 text-slate-400 hover:text-white" />
+                            <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                           )}
                         </button>
                       </>
@@ -380,7 +441,7 @@ export default function Game({ onExit }: { onExit?: () => void }) {
                   {players.length > 0 && (
                     <div className="mt-1.5 space-y-0.5">
                       {players.map((player) => (
-                        <div key={player.id} className="flex items-center gap-1.5 text-xs text-slate-400">
+                        <div key={player.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <span className="w-2 h-2 rounded-full bg-green-500" />
                           {player.name}
                         </div>
@@ -407,6 +468,20 @@ export default function Game({ onExit }: { onExit?: () => void }) {
           isVisible={isTipVisible}
           onContinue={onTipContinue}
           onSkipAll={onTipSkipAll}
+        />
+
+        <SketchLabDialog
+          open={sketchLabOpen}
+          onOpenChange={setSketchLabOpen}
+          onPlaceOnMap={handlePlaceSketchFromLab}
+        />
+
+        <AiWorldModeDialog
+          open={aiWorldSetupDialogOpen}
+          onOpenChange={setAiWorldSetupDialogOpen}
+          initialConfig={aiWorldApiConfig}
+          onSave={(config) => saveAiWorldSettings({ simulationEnabled: true, config })}
+          onClear={() => saveAiWorldSettings({ simulationEnabled: false, config: null })}
         />
       </div>
     </TooltipProvider>

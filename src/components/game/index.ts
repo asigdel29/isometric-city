@@ -14,6 +14,7 @@ export * from './buildingSprite';
 export * from './trafficSystem';
 export * from './incidentData';
 export * from './pedestrianSystem';
+export { GamePanel, GameButton } from './GameChrome';
 export { Sidebar } from './Sidebar';
 export { OverlayModeToggle } from './OverlayModeToggle';
 export { MiniMap } from './MiniMap';
